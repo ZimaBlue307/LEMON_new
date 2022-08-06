@@ -126,18 +126,14 @@ if __name__ == "__main__":
 
     """Initialization"""
     mylogger = Logger()
-    backend_choices = [1,2,3]
+    backend_choices = [1]# adding 4,5,6, not for sure (mindspore)——>just edifying LEMON to mindspore, so just change to 1
     exps = parameters['exps'].lstrip().rstrip().split(" ")
     exps.sort(key=lambda x: x)
     all_model_inputs = {e:set() for e in exps}
     items_lists = list()
     for backend_choice in backend_choices:
         if backend_choice == 1:
-            pre_backends = ['tensorflow', 'theano', 'cntk']
-        elif backend_choice == 2:
-            pre_backends = ['tensorflow', 'theano', 'mxnet']
-        else:
-            pre_backends = ['tensorflow', 'cntk', 'mxnet']
+            pre_backends = ['mindspore1.7.0', 'mindspore1.6.2']
         backends_str = "-".join(pre_backends)
         backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(pre_backends, 2)]
 
@@ -157,9 +153,12 @@ if __name__ == "__main__":
             if exp_idntfr == 'inception.v3-imagenet' or exp_idntfr == 'densenet121-imagenet' or is_lstm_not_exists(exp_idntfr,current_container):
                 # inception and densenet can't run on mxnet.
                 # lstm can't run on mxnet before mxnet version 1.3.x
-                backends = ['tensorflow', 'theano', 'cntk']
+                #don't know about the feature of mindspore yet. adding two versions of mindspore
+                #backends = ['tensorflow', 'theano', 'cntk', 'mindspore']
+                backends = ['mindspore1.7.0', 'mindspore1.6.2']
             else:
-                backends = ['tensorflow', 'theano', 'cntk','mxnet']
+                #backends = ['tensorflow', 'theano', 'cntk','mxnet', 'mindspore']
+                backends = ['mindspore1.7.0', 'mindspore1.6.2']
             print("Localize for {} : {} left.".format(exp_idntfr,len(model_inputs_set)))
             mut_dir = os.path.join(output_dir,exp_idntfr, "mut_model")
             localization_dir = os.path.join(output_dir,exp_idntfr, "localization_result")

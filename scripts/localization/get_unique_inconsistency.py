@@ -148,7 +148,7 @@ if __name__ == '__main__':
     output_dir = output_dir[:-1] if output_dir.endswith("/") else output_dir
     threshold = parameters.getfloat('threshold')
     current_container = output_dir.rstrip("/").split("/")[-1]
-    backend_choices = [1,2,3]
+    backend_choices = [1] #similar to localize_lemon.py
 
     # you can try different threshold
     unique_inconsistencies_dict = set()
@@ -156,12 +156,20 @@ if __name__ == '__main__':
     all_relations = dict()
 
     for backend_choice in backend_choices:
+        # if backend_choice == 1:
+        #     pre_backends = ['tensorflow', 'theano', 'cntk']
+        # elif backend_choice == 2:
+        #     pre_backends = ['tensorflow', 'theano', 'mxnet']
+        # elif backend_choice == 3:
+        #     pre_backends = ['tensorflow', 'theano', 'mindspore']
+        # elif backend_choice == 4:
+        #     pre_backends = ['tensorflow', 'cntk', 'mxnet']
+        # elif backend_choice == 5:
+        #     pre_backends = ['tensorlfow', 'cntk', 'mindspore']
+        # else:
+        #     pre_backends = ['tensorflow', 'mxnet', 'mindspore'] 
         if backend_choice == 1:
-            backends = ['tensorflow', 'theano', 'cntk']
-        elif backend_choice == 2:
-            backends = ['tensorflow', 'theano', 'mxnet']
-        else:
-            backends = ['tensorflow', 'cntk', 'mxnet']
+            pre_backends = ['mindspore1.7.0', 'mindspore1.6.2']
         print(current_container,backends)
         backends_str = "-".join(backends)
         backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(backends, 2)]

@@ -270,12 +270,13 @@ if __name__ == '__main__':
     output_dir = output_dir[:-1] if output_dir.endswith("/") else output_dir
     threshold = parameters.getfloat('threshold')
     current_container = output_dir.rstrip("/").split("/")[-1]
-    backend_choices = [1, 2, 3]
+    backend_choices = [1] #similar to the edification in localize_lemon.py
     print("current_container",current_container)
 
     exps = parameters['exps'].lstrip().rstrip().split(" ")
     exps.sort(key=lambda x:x)
-    global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['tensorflow', 'theano', 'cntk','mxnet'], 2)]
+    #global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['tensorflow', 'theano', 'cntk','mxnet'], 2)]
+    global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['mindspore1.7.0', 'mindspore1.6.2'], 2)]
 
     pd_exps = list()
     success_cnt = fail_cnt = 0
@@ -306,12 +307,14 @@ if __name__ == '__main__':
     model_input_localize = {}
 
     for backend_choice in backend_choices:
+        # if backend_choice == 1:
+        #     backends = ['tensorflow', 'theano', 'cntk']
+        # elif backend_choice == 2:
+        #     backends = ['tensorflow', 'theano', 'mxnet']
+        # else:
+        #     backends = ['tensorflow', 'cntk', 'mxnet']
         if backend_choice == 1:
-            backends = ['tensorflow', 'theano', 'cntk']
-        elif backend_choice == 2:
-            backends = ['tensorflow', 'theano', 'mxnet']
-        else:
-            backends = ['tensorflow', 'cntk', 'mxnet']
+            backends = ['mindspore1.7.0', 'mindspore1.6.2']
         backend_str = "-".join(backends)
 
         backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(backends, 2)]

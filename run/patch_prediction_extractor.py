@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     batch_size= 32
     """Switch backend"""
-    bk_list = ['tensorflow', 'theano', 'cntk','mxnet']
+    bk_list = ['tensorflow', 'theano', 'cntk','mxnet', 'mindspore'] #adding mindspore
     bk = flags.backend
     os.environ['KERAS_BACKEND'] = bk
     os.environ['PYTHONHASHSEED'] = '0'
@@ -106,6 +106,13 @@ if __name__ == "__main__":
         import keras
 
         batch_size = 16
+    
+    #adding branch for mindspore
+    if bk == "mindspore":
+        import mindspore as mp
+        main_logger.info(mp.__version__) #get the version of mindspore, but not for sure
+        import keras
+    
     from keras import backend as K
 
 
