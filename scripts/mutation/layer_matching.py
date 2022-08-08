@@ -63,8 +63,11 @@ class LayerMatching:
 
     @staticmethod
     def flatten(input_shape):
-        import keras
-        return keras.layers.Flatten()
+        #import keras
+        #return keras.layers.Flatten()
+        import mindspore
+        return mindspore.nn.Flatten()
+        
 
     @staticmethod
     def flatten_constraints(input_shape):
@@ -88,16 +91,19 @@ class LayerMatching:
 
     @staticmethod
     def flatten_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.Flatten())
+        layer_concat.append(mindspore.nn.Flatten())
         units = 1
         for i in range(len(input_shape)):
             if i == 0:
                 continue
             units *= input_shape[i]
-        layer_concat.append(keras.layers.Dense(units))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        #different from keras.layers.Dense(units), units:输出空间维度
+        #mindspore.nn.Dense needs two parameters: in_channels and out_channels
+        layer_concat.append(mindspore.nn.Dense(input_shape, units))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+        #I guess input_shape[1:] is the target_shape
         return layer_concat
 
     @staticmethod
@@ -116,11 +122,14 @@ class LayerMatching:
     @staticmethod
     def repeat_vector_dense(input_shape):
         n = 3
-        import keras
+        import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.RepeatVector(n))
-        layer_concat.append(keras.layers.Reshape((input_shape[1] * n,)))
-        layer_concat.append(keras.layers.Dense(input_shape[1]))
+        #keras.layers.RepeatVector(n): repeat the input for n times
+        #may change into mindspore.numpy.repeat, but not for sure yet
+        #layer_concat.append(keras.layers.RepeatVector(n))
+        layer_concat.append(mindspore.numpy.repeat(input_shape, n))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n)))#why here is a ","? now delete it
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1]))#not for sure
         return layer_concat
 
     @staticmethod
@@ -131,10 +140,10 @@ class LayerMatching:
 
     @staticmethod
     def cropping1d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
-        layer_concat.append(keras.layers.Dense(input_shape[1]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1]))#not for sure
         return layer_concat
 
     @staticmethod
@@ -145,12 +154,12 @@ class LayerMatching:
 
     @staticmethod
     def cropping2d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))
-        layer_concat.append(keras.layers.Reshape(((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3],)))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3])))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -164,12 +173,12 @@ class LayerMatching:
 
     @staticmethod
     def cropping3d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))
-        layer_concat.append(keras.layers.Reshape(((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4],)))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -184,10 +193,10 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_1d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.UpSampling1D(size=2))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
         return layer_concat
 
     @staticmethod
@@ -198,12 +207,12 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_2d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.UpSampling2D(size=(2, 2)))
         layer_concat.append(keras.layers.Flatten())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -215,12 +224,12 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_3d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.UpSampling3D(size=(2, 2, 2)))
-        layer_concat.append(keras.layers.Flatten())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Flatten())
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -285,20 +294,20 @@ class LayerMatching:
 
     @staticmethod
     def global_max_pooling_1d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalMaxPooling1D())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
     def global_average_pooling_1d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalAveragePooling1D())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -309,20 +318,20 @@ class LayerMatching:
 
     @staticmethod
     def global_max_pooling_2d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalMaxPooling2D())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
     def global_average_pooling_2d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalAveragePooling2D())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -336,22 +345,22 @@ class LayerMatching:
 
     @staticmethod
     def global_max_pooling_3d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalMaxPooling3D())
         layer_concat.append(keras.layers.Flatten())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
     def global_average_pooling_3d_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalAveragePooling3D())
-        layer_concat.append(keras.layers.Flatten())
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Flatten())
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -366,11 +375,11 @@ class LayerMatching:
 
     @staticmethod
     def simple_rnn_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.SimpleRNN(50))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -383,11 +392,11 @@ class LayerMatching:
 
     @staticmethod
     def gru_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GRU(50))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
@@ -398,11 +407,11 @@ class LayerMatching:
 
     @staticmethod
     def lstm_dense(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.LSTM(50))
-        layer_concat.append(keras.layers.Dense(input_shape[1] * input_shape[2]))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
+        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
 
     @staticmethod
