@@ -10,7 +10,7 @@ mylogger = Logger()
 def generate_model_by_model_mutation(model, operator,mutate_ratio=0.3):
     """
     Generate models using specific mutate operator
-    :param model: model loaded by keras (tensorflow backend default)
+    :param model: model loaded by mindspore (mindspore1.7.0 and mindspore1.6.2)
     :param operator: mutation operator
     :param mutate_ratio: ratio of selected neurons
     :return: mutation model object
@@ -72,11 +72,17 @@ if __name__ == '__main__':
     parse.add_argument("--mutate_ratio", type=float, help="mutate ratio")
     flags, unparsed = parse.parse_known_args(sys.argv[1:])
 
-    import keras
+    #import keras
+    import mindspore
     model_path = flags.model
     mutate_ratio = flags.mutate_ratio
     print("Current {}; Mutate ratio {}".format(flags.mutate_op,mutate_ratio))
-    origin_model = keras.models.load_model(model_path, custom_objects=utils.ModelUtils.custom_objects())
+    #origin_model = keras.models.load_model(model_path, custom_objects=utils.ModelUtils.custom_objects())
+    
+    param_dict = mindspore.load_checkpoint()
+    mindspore.load_param_into_net(model_path, param_dict)
+    origin_model = mindspore.Model(model_path) #not sure yet.
+    
     mutated_model = generate_model_by_model_mutation(model=origin_model,operator=flags.mutate_op,mutate_ratio=mutate_ratio)
 
 

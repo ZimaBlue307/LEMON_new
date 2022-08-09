@@ -127,7 +127,7 @@ class LayerMatching:
         #keras.layers.RepeatVector(n): repeat the input for n times
         #may change into mindspore.numpy.repeat, but not for sure yet
         #layer_concat.append(keras.layers.RepeatVector(n))
-        layer_concat.append(mindspore.numpy.repeat(input_shape, n))
+        layer_concat.append(mindspore.numpy.repeat(input_shape, n)) #may be wrong
         layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n)))#why here is a ","? now delete it
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1]))#not for sure
         return layer_concat
@@ -142,8 +142,9 @@ class LayerMatching:
     def cropping1d_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
-        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1]))#not for sure
+        #layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
+        layer_concat.append(mindspore.dataset.vision.c_transforms.Crop((0,1), ()))#don't know what to do yet
+        layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1]))
         return layer_concat
 
     @staticmethod
@@ -156,7 +157,7 @@ class LayerMatching:
     def cropping2d_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))
+        layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))#don't know what to do yet
         layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3])))
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -175,7 +176,7 @@ class LayerMatching:
     def cropping3d_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))
+        layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))#don't know what to do yet
         layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -210,7 +211,7 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.UpSampling2D(size=(2, 2)))
-        layer_concat.append(keras.layers.Flatten())
+        layer_concat.append(mindspore.nn.Flatten())
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
@@ -242,6 +243,7 @@ class LayerMatching:
                and input_shape[4] is not None \
                and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
 
+#8.8
     @staticmethod
     def zeropadding_1d_conv(input_shape):
         import keras

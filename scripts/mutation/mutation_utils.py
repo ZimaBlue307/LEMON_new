@@ -16,10 +16,10 @@ class ActivationUtils:
     @staticmethod
     def available_activations():
         activations = {}
-        import keras.backend as K
-        activations['relu'] = K.relu
-        activations['tanh'] = K.tanh
-        activations['sigmoid'] = K.sigmoid
+        import mindspore.nn as nn
+        activations['relu'] = nn.ReLU
+        activations['tanh'] = nn.Tanh
+        activations['sigmoid'] = nn.Sigmoid
         activations['no_activation'] = ActivationUtils.no_activation
         activations['leakyrelu'] = ActivationUtils.leakyrelu
         return activations
@@ -45,8 +45,8 @@ class ActivationUtils:
 
     @staticmethod
     def leakyrelu(x):
-        import keras.backend as K
-        return K.relu(x, alpha=0.01)
+        import mindspore.nn as nn
+        return nn.Leaky_relu(x, alpha=0.01) #not for sure about the input
 
 
 class LayerUtils:
@@ -108,8 +108,9 @@ class LayerUtils:
         self.is_input_legal['activity_regularization_l2'] = LayerUtils.activity_regularization_input_legal
 
     def is_layer_in_weight_change_white_list(self, layer):
-        import keras
-        white_list = [keras.layers.Dense, keras.layers.Conv1D, keras.layers.Conv2D, keras.layers.Conv3D,
+        #import keras
+        import mindspore
+        white_list = [mindspore.nn.Dense, mindspore.nn.Conv1D, mindspore.nn.Conv2D, mindspore.nn.Conv3D,
                       keras.layers.DepthwiseConv2D,
                       keras.layers.Conv2DTranspose, keras.layers.Conv3DTranspose,
                       keras.layers.MaxPooling1D, keras.layers.MaxPooling2D, keras.layers.MaxPooling3D,
