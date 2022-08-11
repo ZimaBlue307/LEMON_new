@@ -46,7 +46,9 @@ class ActivationUtils:
     @staticmethod
     def leakyrelu(x):
         import mindspore.nn as nn
-        return nn.Leaky_relu(x, alpha=0.01) #not for sure about the input
+        leaky_relu = nn.LeakyReLU(alpha = 0.01)
+        output = leaky_relu(x)
+        return output #not for sure about the input
 
 
 class LayerUtils:
@@ -110,14 +112,18 @@ class LayerUtils:
     def is_layer_in_weight_change_white_list(self, layer):
         #import keras
         import mindspore
-        white_list = [mindspore.nn.Dense, mindspore.nn.Conv1D, mindspore.nn.Conv2D, mindspore.nn.Conv3D,
-                      keras.layers.DepthwiseConv2D,
-                      keras.layers.Conv2DTranspose, keras.layers.Conv3DTranspose,
-                      keras.layers.MaxPooling1D, keras.layers.MaxPooling2D, keras.layers.MaxPooling3D,
-                      keras.layers.AveragePooling1D, keras.layers.AveragePooling2D, keras.layers.AveragePooling3D,
-                      keras.layers.LeakyReLU, keras.layers.ELU, keras.layers.ThresholdedReLU,
-                      keras.layers.Softmax, keras.layers.ReLU
+        white_list = [mindspore.nn.Dense, mindspore.nn.Conv1d, mindspore.nn.Conv2d, mindspore.nn.Conv3d,
+                      #keras.layers.DepthwiseConv2D,
+                      mindspore.nn.Conv2dTranspose, mindspore.nn.Conv3dTranspose,
+                      mindspore.nn.MaxPool1D, mindspore.nn.MaxPool, mindspore.ops.MaxPool3D,
+                      mindspore.nn.AvgPool1d, mindspore.nn.AvgPool2d, mindspore.ops.AvgPool3D,
+                      mindspore.nn.LeakyReLU, mindspore.nn.ELU, keras.layers.ThresholdedReLU,
+                      mindspore.nn.Softmax, mindspore.ops.ReLU
                       ]
+        #in mindspore1.7.0, DepthwiseConv2dNative don't have any description files since it will be deprecated in the future, 
+        #and the developer recommand us to use Conv2D instead.
+        #keras.layers.AveragePooling3D——>mindspore.nn.AvgPool3D
+        #keras.layers.AveragePooling2D——>mindspore.nn.AvgPool
         # print(white_list)
         for l in white_list:
             if isinstance(layer, l):
@@ -145,8 +151,9 @@ class LayerUtils:
     @staticmethod
     def dense(input_shape):
         # input_shape = input_shape.as_list()
-        import keras
-        layer = keras.layers.Dense(input_shape[-1], input_shape=(input_shape[1:],))
+        import mindspore
+        layer = mindspore.nn.Dense(input_shape[-1], input_shape=(input_shape[1:],))
+        # may need to change the input
         layer.name += '_insert'
         return layer
 
@@ -157,8 +164,12 @@ class LayerUtils:
 
     @staticmethod
     def conv1d(input_shape):
-        import keras
-        layer = keras.layers.Conv1D(input_shape[-1], 3, strides=1, padding='same')
+        import mindspore
+        #layer = keras.layers.Conv1D(input_shape[-1], 3, strides=1, padding='same')
+        #When using this layer as the first layer in a model, 
+        #provide an input_shape argument (tuple of integers or None;
+        # 3 is kernel size
+        layer = mindspore.nn.Conv1d(input_shape[-1], kernel_size=3, strides=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -170,8 +181,9 @@ class LayerUtils:
     @staticmethod
     def conv2d(input_shape):
         # input_shape = input_shape.as_list()
-        import keras
-        layer = keras.layers.Conv2D(input_shape[-1], 3, strides=(1,1), padding='same')
+        import mindspore
+        #layer = keras.layers.Conv2D(input_shape[-1], 3, strides=(1,1), padding='same')
+        layer = mindspore.nn.Conv2d(input_shape[-1], kernel_size=3, strides=(1,1), pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -197,6 +209,7 @@ class LayerUtils:
     def separable_conv_2d(input_shape):
         import keras
         layer = keras.layers.SeparableConv2D(input_shape[-1], 3, strides=(1,1), padding='same')
+        #深度可分离的二维卷积。
         layer.name += '_insert'
         return layer
 
@@ -210,6 +223,7 @@ class LayerUtils:
     def depthwise_conv_2d(input_shape):
         import keras
         layer = keras.layers.DepthwiseConv2D(3, strides=(1,1), padding='same')
+        #暂时不知道如何修改这个深度卷积的API，先放着
         layer.name += '_insert'
         return layer
 
@@ -221,8 +235,10 @@ class LayerUtils:
 
     @staticmethod
     def conv_2d_transpose(input_shape):
-        import keras
-        layer = keras.layers.Conv2DTranspose(input_shape[-1], 3, strides=(1,1), padding='same')
+        import mindspore
+        layer = mindspore.nn.Conv2dTranspose(input_shape[-1], kernel_size = 3, stride=(1,1), pad_mode='same')
+        #not for sure what does input_shape[-1] means
+        #回头再改
         layer.name += '_insert'
         return layer
 
@@ -234,7 +250,7 @@ class LayerUtils:
 
     @staticmethod
     def conv_3d(input_shape):
-        import keras
+        import mindspore
         layer = keras.layers.Conv3D(input_shape[-1], 3, strides=(1,1,1), padding='same')
         layer.name += '_insert'
         return layer
@@ -249,8 +265,11 @@ class LayerUtils:
 
     @staticmethod
     def conv_3d_transpose(input_shape):
-        import keras
-        layer = keras.layers.Conv3DTranspose(input_shape[-1], 3, strides=(1,1,1), padding='same')
+        import mindspore
+        #layer = keras.layers.Conv3DTranspose(input_shape[-1], 3, strides=(1,1,1), padding='same')
+        layer = mindspore.nn.Conv3dTranspose(input_shape[-1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
+        #not for sure what does input_shape[-1] means
+        #回头再改
         layer.name += '_insert'
         return layer
 
@@ -264,8 +283,8 @@ class LayerUtils:
 
     @staticmethod
     def max_pooling_1d(input_shape):
-        import keras
-        layer = keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same')
+        import mindspore
+        layer = mindspore.nn.MaxPool1d(kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -276,8 +295,8 @@ class LayerUtils:
 
     @staticmethod
     def max_pooling_2d(input_shape):
-        import keras
-        layer = keras.layers.MaxPooling2D(pool_size=(3, 3), strides=1, padding='same')
+        import mindspore
+        layer = mindspore.ops.MaxPool2d(kernel_size=(3, 3), stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -289,8 +308,8 @@ class LayerUtils:
 
     @staticmethod
     def max_pooling_3d(input_shape):
-        import keras
-        layer = keras.layers.MaxPooling3D(pool_size=(3, 3, 3), strides=1, padding='same')
+        import mindspore
+        layer = mindspore.ops.MaxPool3D(kernel_size=(3, 3, 3), strides=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -304,8 +323,8 @@ class LayerUtils:
 
     @staticmethod
     def average_pooling_1d(input_shape):
-        import keras
-        layer = keras.layers.AveragePooling1D(pool_size=3, strides=1, padding='same')
+        import mindspore
+        layer = mindspore.nn.AvgPool1d(kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -316,8 +335,8 @@ class LayerUtils:
 
     @staticmethod
     def average_pooling_2d(input_shape):
-        import keras
-        layer = keras.layers.AveragePooling2D(pool_size=(3, 3), strides=1, padding='same')
+        import mindspore
+        layer = mindspore.nn.AvgPool2d(kernel_size=(3, 3), stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -329,8 +348,8 @@ class LayerUtils:
 
     @staticmethod
     def average_pooling_3d(input_shape):
-        import keras
-        layer = keras.layers.AveragePooling3D(pool_size=(3, 3, 3), strides=1, padding='same')
+        import mindspore
+        layer = mindspore.ops.AvgPool3D(kernel_size=(3, 3, 3), strides=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -344,8 +363,10 @@ class LayerUtils:
 
     @staticmethod
     def batch_normalization(input_shape):
-        import keras
-        layer = keras.layers.BatchNormalization(input_shape=input_shape[1:])
+        import mindspore
+        #layer = keras.layers.BatchNormalization(input_shape=input_shape[1:])
+        #keras里默认is training 是true
+        layer = mindspore.ops.BatchNorm(is_training  = True, )
         layer.name += '_insert'
         return layer
 
@@ -355,8 +376,9 @@ class LayerUtils:
 
     @staticmethod
     def leaky_relu_layer(input_shape):
-        import keras
-        layer = keras.layers.LeakyReLU(input_shape=input_shape[1:])
+        import mindspore.nn as nn
+        leaky_relu = nn.LeakyReLU(alpha = 0.3)
+        layer = leaky_relu(input_shape=input_shape[1:])
         layer.name += '_insert'
         return layer
 
@@ -366,8 +388,10 @@ class LayerUtils:
 
     @staticmethod
     def prelu_layer(input_shape):
-        import keras
-        layer = keras.layers.PReLU(input_shape=input_shape[1:], alpha_initializer='RandomNormal')
+        import mindspore
+        #layer = keras.layers.PReLU(input_shape=input_shape[1:], alpha_initializer='RandomNormal')
+        layer = mindspore.ops.PReLU(input_shape=input_shape[1:], weight='RandomNormal')
+        #不确定改的对不对
         layer.name += '_insert'
         return layer
 
@@ -377,8 +401,9 @@ class LayerUtils:
 
     @staticmethod
     def elu_layer(input_shape):
-        import keras
-        layer = keras.layers.ELU(input_shape=input_shape[1:])
+        import mindspore
+        elu = mindspore.nn.ELU()
+        layer = elu(input_shape=input_shape[1:])
         layer.name += '_insert'
         return layer
 
@@ -388,6 +413,8 @@ class LayerUtils:
 
     @staticmethod
     def thresholded_relu_layer(input_shape):
+        #ThresholdedReLU: f(x) = x for x > theta otherwise f(x) = 0
+        #修改办法应该和def relu_layer(input_shape)相同，回头来修改
         import keras
         layer = keras.layers.ThresholdedReLU(input_shape=input_shape[1:])
         layer.name += '_insert'
@@ -399,8 +426,8 @@ class LayerUtils:
 
     @staticmethod
     def softmax_layer(input_shape):
-        import keras
-        layer = keras.layers.Softmax(input_shape=input_shape[1:])
+        import mindspore
+        layer = mindspore.nn.Softmax(input_shape=input_shape[1:])
         layer.name += '_insert'
         return layer
 
@@ -410,8 +437,10 @@ class LayerUtils:
 
     @staticmethod
     def relu_layer(input_shape):
-        import keras
-        layer = keras.layers.ReLU(max_value=1.0, input_shape=input_shape[1:])
+        import mindspore
+        relu = mindspore.ops.ReLU()
+        layer = relu(input_shape=input_shape[1:])
+        #没有修改relu中的max-value=1.0，回头来修改
         layer.name += '_insert'
         return layer
 

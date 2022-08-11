@@ -81,7 +81,7 @@ if __name__ == '__main__':
     
     param_dict = mindspore.load_checkpoint()
     mindspore.load_param_into_net(model_path, param_dict)
-    origin_model = mindspore.Model(model_path) #not sure yet.
+    origin_model = mindspore.Model(model_path) #not sure yet.回头再修改
     
     mutated_model = generate_model_by_model_mutation(model=origin_model,operator=flags.mutate_op,mutate_ratio=mutate_ratio)
 
