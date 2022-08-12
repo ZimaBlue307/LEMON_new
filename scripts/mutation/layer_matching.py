@@ -177,6 +177,7 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))#don't know what to do yet
+        #mindspore.dataset.vision.c_transforms.Crop, but not for sure yet.
         layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -228,6 +229,8 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.UpSampling3D(size=(2, 2, 2)))
+        #mindspore.nn.ResizeBilinear
+        #仅支持bilinear模式对数据进行采样
         layer_concat.append(mindspore.nn.Flatten())
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -246,10 +249,10 @@ class LayerMatching:
 #8.8
     @staticmethod
     def zeropadding_1d_conv(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.ZeroPadding1D(padding=1))
-        layer_concat.append(keras.layers.Conv1D(input_shape[-1], 3))
+        layer_concat.append(mindspore.nn.Conv1d(input_shape[-1], 3))
         return layer_concat
 
     @staticmethod
@@ -261,10 +264,10 @@ class LayerMatching:
 
     @staticmethod
     def zeropadding_2d_conv(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.ZeroPadding2D(padding=(1, 1)))
-        layer_concat.append(keras.layers.Conv2D(input_shape[-1], 3))
+        layer_concat.append(mindspore.nn.Conv2d(input_shape[-1], 3))
         return layer_concat
 
     @staticmethod
@@ -278,10 +281,10 @@ class LayerMatching:
 
     @staticmethod
     def zeropadding_3d_conv(input_shape):
-        import keras
+        import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.ZeroPadding3D(padding=(1, 1, 1)))
-        layer_concat.append(keras.layers.Conv3D(input_shape[-1], 3))
+        layer_concat.append(mindspore.nn.Conv3d(input_shape[-1], 3))
         return layer_concat
 
     @staticmethod
@@ -350,7 +353,7 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.GlobalMaxPooling3D())
-        layer_concat.append(keras.layers.Flatten())
+        layer_concat.append(mindspore.nn.Flatten())
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
@@ -396,7 +399,8 @@ class LayerMatching:
     def gru_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.GRU(50))
+        #layer_concat.append(keras.layers.GRU(50))
+        layer_concat.append(mindspore.nn.GRU(50))
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
@@ -411,7 +415,8 @@ class LayerMatching:
     def lstm_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.LSTM(50))
+        #layer_concat.append(keras.layers.LSTM(50))
+        layer_concat.append(mindspore.ops.LSTM(50)) #what does 50 means ?
         layer_concat.append(mindspore.nn.Dense(input_shape, input_shape[1] * input_shape[2]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
         return layer_concat
@@ -424,8 +429,10 @@ class LayerMatching:
 
     @staticmethod
     def conv_lstm_2d_dense(input_shape):
-        import keras
+        #import keras
+        import mindspore
         layer_concat = []
+        #先搁置
         layer_concat.append(keras.layers.ConvLSTM2D(input_shape[-1], kernel_size=(1, 1), strides=(1, 1), padding='same', return_sequences=True))
         return layer_concat
 

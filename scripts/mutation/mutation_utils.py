@@ -48,8 +48,7 @@ class ActivationUtils:
         import mindspore.nn as nn
         leaky_relu = nn.LeakyReLU(alpha = 0.01)
         output = leaky_relu(x)
-        return output #not for sure about the input
-
+        return output 
 
 class LayerUtils:
     def __init__(self):
@@ -169,7 +168,7 @@ class LayerUtils:
         #When using this layer as the first layer in a model, 
         #provide an input_shape argument (tuple of integers or None;
         # 3 is kernel size
-        layer = mindspore.nn.Conv1d(input_shape[-1], kernel_size=3, strides=1, pad_mode='same')
+        layer = mindspore.nn.Conv1d(input_shape[-1], kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -237,7 +236,7 @@ class LayerUtils:
     def conv_2d_transpose(input_shape):
         import mindspore
         layer = mindspore.nn.Conv2dTranspose(input_shape[-1], kernel_size = 3, stride=(1,1), pad_mode='same')
-        #not for sure what does input_shape[-1] means
+        #not for sure what does input_shape[-1] means, means filters?
         #回头再改
         layer.name += '_insert'
         return layer
@@ -251,7 +250,9 @@ class LayerUtils:
     @staticmethod
     def conv_3d(input_shape):
         import mindspore
-        layer = keras.layers.Conv3D(input_shape[-1], 3, strides=(1,1,1), padding='same')
+        #layer = keras.layers.Conv3D(input_shape[-1], 3, strides=(1,1,1), padding='same')
+        layer = mindspore.nn.Conv3d(input_shape[-1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
+        #what's the in_channel and out_channel?
         layer.name += '_insert'
         return layer
 
