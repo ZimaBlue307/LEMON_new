@@ -453,6 +453,9 @@ def LA_mut(model, new_layers=None, mutated_layer_indices=None):
 
     import keras.backend as K
     K.batch_set_value(tuples)
+    #batch_set_value,一次设置多个张量变量的值。
+    #tuples：元组 (tensor, value) 的列表。 value 应该是一个 Numpy 数组。
+    #应该可以直接用mindspore.Tensor实现，但是得先知道tuples是什么
     return new_model
 
 

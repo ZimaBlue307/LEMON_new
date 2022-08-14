@@ -152,7 +152,7 @@ class LayerUtils:
         # input_shape = input_shape.as_list()
         import mindspore
         layer = mindspore.nn.Dense(input_shape[-1], input_shape=(input_shape[1:],))
-        # may need to change the input
+        #这里的dense存在疑问：为什么传入两个参数呢？
         layer.name += '_insert'
         return layer
 
