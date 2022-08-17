@@ -123,6 +123,7 @@ def _LC_and_LR_scan(model, mutated_layer_indices):
             # InputLayer should not be copied or removed
             from keras.engine.input_layer import InputLayer
             if isinstance(layer, InputLayer):
+            #判断一个对象是否是一个已知的类型类似, isinstance(object, classinfo)
                 continue
             # layers with multiple input tensors can't be copied or removed
             if isinstance(layer.input, list) and len(layer.input) > 1:
@@ -691,7 +692,8 @@ def LS_mut(model):
                                                                 layers[choose_index[1]].input.shape,
                                                                 layers[choose_index[1]].output.shape))
     if model.__class__.__name__ == 'Sequential':
-        import keras
+        #import keras
+        import mindspore
         new_model = keras.Sequential()
         for i, layer in enumerate(layers):
             if i == choose_index[0]:

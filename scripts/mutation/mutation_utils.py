@@ -116,7 +116,7 @@ class LayerUtils:
                       mindspore.nn.Conv2dTranspose, mindspore.nn.Conv3dTranspose,
                       mindspore.nn.MaxPool1D, mindspore.nn.MaxPool, mindspore.ops.MaxPool3D,
                       mindspore.nn.AvgPool1d, mindspore.nn.AvgPool2d, mindspore.ops.AvgPool3D,
-                      mindspore.nn.LeakyReLU, mindspore.nn.ELU, keras.layers.ThresholdedReLU,
+                      mindspore.nn.LeakyReLU, mindspore.nn.ELU, #keras.layers.ThresholdedReLU,
                       mindspore.nn.Softmax, mindspore.ops.ReLU
                       ]
         #in mindspore1.7.0, DepthwiseConv2dNative don't have any description files since it will be deprecated in the future, 
@@ -168,7 +168,8 @@ class LayerUtils:
         #When using this layer as the first layer in a model, 
         #provide an input_shape argument (tuple of integers or None;
         # 3 is kernel size
-        layer = mindspore.nn.Conv1d(input_shape[-1], kernel_size=3, stride=1, pad_mode='same')
+        #keras里改变的是最后一维序列长度，而mindspore修改的是倒数第二维空间维度
+        layer = mindspore.nn.Conv1d(input_shape[-2] ,input_shape[-2], kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
 
@@ -182,6 +183,7 @@ class LayerUtils:
         # input_shape = input_shape.as_list()
         import mindspore
         #layer = keras.layers.Conv2D(input_shape[-1], 3, strides=(1,1), padding='same')
+        #
         layer = mindspore.nn.Conv2d(input_shape[-1], kernel_size=3, strides=(1,1), pad_mode='same')
         layer.name += '_insert'
         return layer

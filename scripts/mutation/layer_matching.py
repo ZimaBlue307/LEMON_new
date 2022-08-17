@@ -104,7 +104,7 @@ class LayerMatching:
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], units))
         layer_concat.append(keras.layers.Reshape(input_shape[1:]))
         #I guess input_shape[1:] is the target_shape(不包含表示batch size的轴,即不包含input_shape[0])
-        #mindspore.ops.Reshape(tensor, new_shape)
+        #mindspore.ops.Reshape(tensor, new_shape)，没法儿获得tensor啊？
         return layer_concat
 
     @staticmethod
@@ -127,7 +127,7 @@ class LayerMatching:
         layer_concat = []
         #keras.layers.RepeatVector(n): repeat the input for n times
         #may change into mindspore.numpy.repeat, but not for sure yet
-        #layer_concat.append(keras.layers.RepeatVector(n))
+        layer_concat.append(keras.layers.RepeatVector(n))
         
         layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n)))#why here is a ","? now delete it
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))#not for sure

@@ -68,6 +68,8 @@ if __name__ == '__main__':
     parse = argparse.ArgumentParser()
     parse.add_argument("--model", type=str, help="model path")
     parse.add_argument("--mutate_op", type=str, help="model mutation operator")
+    # add argument: checkpoint path
+    parse.add_argument("--checkpoint_path", type=str, help="model checkpoint path")
     parse.add_argument("--save_path", type=str, help="model save path")
     parse.add_argument("--mutate_ratio", type=float, help="mutate ratio")
     flags, unparsed = parse.parse_known_args(sys.argv[1:])
@@ -76,12 +78,14 @@ if __name__ == '__main__':
     import mindspore
     model_path = flags.model
     mutate_ratio = flags.mutate_ratio
+    # add argument checkpoint path
+    checkpoint_path = flags.checkpoint_path
     print("Current {}; Mutate ratio {}".format(flags.mutate_op,mutate_ratio))
     #origin_model = keras.models.load_model(model_path, custom_objects=utils.ModelUtils.custom_objects())
     
-    param_dict = mindspore.load_checkpoint()
-    mindspore.load_param_into_net(model_path, param_dict)
-    origin_model = mindspore.Model(model_path) #not sure yet.回头再修改
+    param_dict = mindspore.load_checkpoint(checkpoint_path)
+    origin_model = mindspore.load_param_into_net(model_path, param_dict)
+    #origin_model = mindspore.Model(model_path)
     
     mutated_model = generate_model_by_model_mutation(model=origin_model,operator=flags.mutate_op,mutate_ratio=mutate_ratio)
 
