@@ -16,6 +16,7 @@ class ActivationUtils:
     @staticmethod
     def available_activations():
         activations = {}
+        import mindspore
         import mindspore.nn as nn
         activations['relu'] = nn.ReLU
         activations['tanh'] = nn.Tanh
@@ -114,7 +115,7 @@ class LayerUtils:
         white_list = [mindspore.nn.Dense, mindspore.nn.Conv1d, mindspore.nn.Conv2d, mindspore.nn.Conv3d,
                       #keras.layers.DepthwiseConv2D,
                       mindspore.nn.Conv2dTranspose, mindspore.nn.Conv3dTranspose,
-                      mindspore.nn.MaxPool1D, mindspore.nn.MaxPool, mindspore.ops.MaxPool3D,
+                      mindspore.nn.MaxPool1d, mindspore.nn.MaxPool2d, mindspore.ops.MaxPool3D,
                       mindspore.nn.AvgPool1d, mindspore.nn.AvgPool2d, mindspore.ops.AvgPool3D,
                       mindspore.nn.LeakyReLU, mindspore.nn.ELU, #keras.layers.ThresholdedReLU,
                       mindspore.nn.Softmax, mindspore.ops.ReLU
@@ -165,9 +166,6 @@ class LayerUtils:
     def conv1d(input_shape):
         import mindspore
         #layer = keras.layers.Conv1D(input_shape[-1], 3, strides=1, padding='same')
-        #When using this layer as the first layer in a model, 
-        #provide an input_shape argument (tuple of integers or None;
-        # 3 is kernel size
         #keras里改变的是最后一维序列长度，而mindspore修改的是倒数第二维空间维度
         layer = mindspore.nn.Conv1d(input_shape[-2] ,input_shape[-2], kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
@@ -183,8 +181,8 @@ class LayerUtils:
         # input_shape = input_shape.as_list()
         import mindspore
         #layer = keras.layers.Conv2D(input_shape[-1], 3, strides=(1,1), padding='same')
-        #
-        layer = mindspore.nn.Conv2d(input_shape[-1], kernel_size=3, strides=(1,1), pad_mode='same')
+        #mindspore的Conv2d，输入的input_shape的倒数第三位是空间维度，C, H, W。修改data format
+        layer = mindspore.nn.Conv2d(input_shape[-1], input_shape[-1], kernel_size=3, strides=(1,1), pad_mode='same', data_format = 'NHWC')
         layer.name += '_insert'
         return layer
 
@@ -197,7 +195,10 @@ class LayerUtils:
     @staticmethod
     def separable_conv_1d(input_shape):
         import keras
-        layer = keras.layers.SeparableConv1D(input_shape[-1], 3, strides=1, padding='same')
+        #未修改
+        layer = keras.layers.SeparableConv1D(input_shape[-2], input_shape[-2], kernel_size = 3, strides=1, padding='same')
+        #layer = keras.layers.SeparableConv1D(input_shape[-1], 3, strides=1, padding='same')
+        #SeparableConv = DepthwiseConv + PointwiseConv
         layer.name += '_insert'
         return layer
 
@@ -209,6 +210,7 @@ class LayerUtils:
     @staticmethod
     def separable_conv_2d(input_shape):
         import keras
+        #未修改
         layer = keras.layers.SeparableConv2D(input_shape[-1], 3, strides=(1,1), padding='same')
         #深度可分离的二维卷积。
         layer.name += '_insert'
@@ -222,9 +224,14 @@ class LayerUtils:
 
     @staticmethod
     def depthwise_conv_2d(input_shape):
-        import keras
-        layer = keras.layers.DepthwiseConv2D(3, strides=(1,1), padding='same')
-        #暂时不知道如何修改这个深度卷积的API，先放着
+        import mindspore
+        #layer = keras.layers.DepthwiseConv2D(3, strides=(1,1), padding='same')
+        layer = mindspore.nn.Conv2d(input_shape[-1], input_shape[-1], kernel_size = 3, stride=(1,1), pad_mode='same',group = input_shape[-1], data_format = 'NHWC')
+        #3 is kernel size
+        #DepthwiseConv2D实现步骤如下：1.输入拆分成单独的channel;
+        #Convolve each channel with an individual depthwise kernel with depth_multiplier output channels.
+        #沿channel轴连接卷积输出
+        #使用Conv2d替代，修改参数group即可
         layer.name += '_insert'
         return layer
 
@@ -237,9 +244,11 @@ class LayerUtils:
     @staticmethod
     def conv_2d_transpose(input_shape):
         import mindspore
-        layer = mindspore.nn.Conv2dTranspose(input_shape[-1], kernel_size = 3, stride=(1,1), pad_mode='same')
+        layer = mindspore.nn.Conv2dTranspose(input_shape[-3], input_shape[-3], kernel_size = 3, stride=(1,1), pad_mode='same')
+        #same way to modify as mindspore.nn.Conv2d
         #not for sure what does input_shape[-1] means, means filters?
-        #回头再改
+        #this can not change data_format; and mindspore.ops.Conv2DTranspose support NHWC,
+        # but need three input: tensor_out, weight, tensor_in
         layer.name += '_insert'
         return layer
 
@@ -253,8 +262,8 @@ class LayerUtils:
     def conv_3d(input_shape):
         import mindspore
         #layer = keras.layers.Conv3D(input_shape[-1], 3, strides=(1,1,1), padding='same')
-        layer = mindspore.nn.Conv3d(input_shape[-1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
-        #what's the in_channel and out_channel?
+        layer = mindspore.nn.Conv3d(input_shape[-4], input_shape[-4], kernel_size = 3, stride=(1,1,1), pad_mode='same')
+        #目前data_format仅支持NCDHW
         layer.name += '_insert'
         return layer
 
@@ -270,9 +279,8 @@ class LayerUtils:
     def conv_3d_transpose(input_shape):
         import mindspore
         #layer = keras.layers.Conv3DTranspose(input_shape[-1], 3, strides=(1,1,1), padding='same')
-        layer = mindspore.nn.Conv3dTranspose(input_shape[-1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
+        layer = mindspore.nn.Conv3dTranspose(input_shape[-4], input_shape[-4], kernel_size = 3, stride=(1,1,1), pad_mode='same')
         #not for sure what does input_shape[-1] means
-        #回头再改
         layer.name += '_insert'
         return layer
 
@@ -284,8 +292,10 @@ class LayerUtils:
                and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
+
+
     @staticmethod
-    def max_pooling_1d(input_shape):
+    def max_pooling_1d(input_shape): #input_shape = (N, C, L)
         import mindspore
         layer = mindspore.nn.MaxPool1d(kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
@@ -299,7 +309,8 @@ class LayerUtils:
     @staticmethod
     def max_pooling_2d(input_shape):
         import mindspore
-        layer = mindspore.ops.MaxPool2d(kernel_size=(3, 3), stride=1, pad_mode='same')
+        #can change the data_format. In keras, default data_format is channel_last
+        layer = mindspore.nn.MaxPool2d(kernel_size=(3, 3), stride=1, pad_mode='same', data_format = 'NHWC')
         layer.name += '_insert'
         return layer
 
@@ -312,6 +323,7 @@ class LayerUtils:
     @staticmethod
     def max_pooling_3d(input_shape):
         import mindspore
+        #data_format目前仅支持’NCDHW’
         layer = mindspore.ops.MaxPool3D(kernel_size=(3, 3, 3), strides=1, pad_mode='same')
         layer.name += '_insert'
         return layer
@@ -327,6 +339,7 @@ class LayerUtils:
     @staticmethod
     def average_pooling_1d(input_shape):
         import mindspore
+        #data_format: N, C, L
         layer = mindspore.nn.AvgPool1d(kernel_size=3, stride=1, pad_mode='same')
         layer.name += '_insert'
         return layer
@@ -339,7 +352,8 @@ class LayerUtils:
     @staticmethod
     def average_pooling_2d(input_shape):
         import mindspore
-        layer = mindspore.nn.AvgPool2d(kernel_size=(3, 3), stride=1, pad_mode='same')
+        # can change the data format to ’NHWC’
+        layer = mindspore.nn.AvgPool2d(kernel_size=(3, 3), stride=1, pad_mode='same', data_format = 'NHWC')
         layer.name += '_insert'
         return layer
 
@@ -352,6 +366,7 @@ class LayerUtils:
     @staticmethod
     def average_pooling_3d(input_shape):
         import mindspore
+        #can not change the data format, default as ’NCDHW’
         layer = mindspore.ops.AvgPool3D(kernel_size=(3, 3, 3), strides=1, pad_mode='same')
         layer.name += '_insert'
         return layer
@@ -368,8 +383,11 @@ class LayerUtils:
     def batch_normalization(input_shape):
         import mindspore
         #layer = keras.layers.BatchNormalization(input_shape=input_shape[1:])
-        #keras里默认is training 是true
-        layer = mindspore.ops.BatchNorm(is_training  = True, )
+        #the default value of 'training' parameter is False
+        #the keyword argument input_shape is arbitrary, 
+        # use it when this layer is the first layer of the model
+        layer = mindspore.ops.BatchNorm(epsilon = 0.001, momentum = 0.99, data_format = 'NHWC')
+        #使用时的输入和keras里的标准化层的输入有差别；
         layer.name += '_insert'
         return layer
 
@@ -381,13 +399,16 @@ class LayerUtils:
     def leaky_relu_layer(input_shape):
         import mindspore.nn as nn
         leaky_relu = nn.LeakyReLU(alpha = 0.3)
-        layer = leaky_relu(input_shape=input_shape[1:])
+        layer = leaky_relu()
+        #maybe don't need this: input_shape=input_shape[1:]
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def leaky_relu_layer_input_legal(input_shape):
         return True
+
+#8.17的进度。明日再修改。
 
     @staticmethod
     def prelu_layer(input_shape):

@@ -254,7 +254,7 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.ZeroPadding1D(padding=1))
-        layer_concat.append(mindspore.nn.Conv1d(input_shape[-1], 3))
+        layer_concat.append(mindspore.nn.Conv1d(input_shape[-2], input_shape[-2], 3))
         return layer_concat
 
     @staticmethod
@@ -269,7 +269,7 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         layer_concat.append(keras.layers.ZeroPadding2D(padding=(1, 1)))
-        layer_concat.append(mindspore.nn.Conv2d(input_shape[-1], 3))
+        layer_concat.append(mindspore.nn.Conv2d(input_shape[-1],input_shape[-1], 3, data_format = 'NHWC'))
         return layer_concat
 
     @staticmethod
