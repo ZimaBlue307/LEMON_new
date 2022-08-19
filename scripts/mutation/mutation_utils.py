@@ -118,7 +118,7 @@ class LayerUtils:
                       mindspore.nn.MaxPool1d, mindspore.nn.MaxPool2d, mindspore.ops.MaxPool3D,
                       mindspore.nn.AvgPool1d, mindspore.nn.AvgPool2d, mindspore.ops.AvgPool3D,
                       mindspore.nn.LeakyReLU, mindspore.nn.ELU, #keras.layers.ThresholdedReLU,
-                      mindspore.nn.Softmax, mindspore.ops.ReLU
+                      mindspore.ops.Softmax, mindspore.ops.ReLU
                       ]
         #in mindspore1.7.0, DepthwiseConv2dNative don't have any description files since it will be deprecated in the future, 
         #and the developer recommand us to use Conv2D instead.
@@ -407,15 +407,17 @@ class LayerUtils:
     @staticmethod
     def leaky_relu_layer_input_legal(input_shape):
         return True
-
-#8.17的进度。明日再修改。
-
+    
+    
     @staticmethod
     def prelu_layer(input_shape):
         import mindspore
+        import keras
         #layer = keras.layers.PReLU(input_shape=input_shape[1:], alpha_initializer='RandomNormal')
-        layer = mindspore.ops.PReLU(input_shape=input_shape[1:], weight='RandomNormal')
-        #不确定改的对不对
+        #alpha_initializer是weights的初始化函数；
+        RN = keras.initializers.RandomNormal(mean = 0, stddev = 0.05)
+        weight = RN(input_shape)
+        layer = mindspore.nn.PReLU(input_shape[-1], weight)
         layer.name += '_insert'
         return layer
 
@@ -427,7 +429,8 @@ class LayerUtils:
     def elu_layer(input_shape):
         import mindspore
         elu = mindspore.nn.ELU()
-        layer = elu(input_shape=input_shape[1:])
+        layer = elu
+        #maybe do not need input_shape=input_shape[1:]
         layer.name += '_insert'
         return layer
 
@@ -438,7 +441,8 @@ class LayerUtils:
     @staticmethod
     def thresholded_relu_layer(input_shape):
         #ThresholdedReLU: f(x) = x for x > theta otherwise f(x) = 0
-        #修改办法应该和def relu_layer(input_shape)相同，回头来修改
+        #需要遍历tensor来实现，但是这里只传入input_shape；
+        #未修改
         import keras
         layer = keras.layers.ThresholdedReLU(input_shape=input_shape[1:])
         layer.name += '_insert'
@@ -451,7 +455,8 @@ class LayerUtils:
     @staticmethod
     def softmax_layer(input_shape):
         import mindspore
-        layer = mindspore.nn.Softmax(input_shape=input_shape[1:])
+        layer = mindspore.ops.Softmax()
+        #it seems we don't need to input_shape=input_shape[1:]
         layer.name += '_insert'
         return layer
 
@@ -462,9 +467,10 @@ class LayerUtils:
     @staticmethod
     def relu_layer(input_shape):
         import mindspore
-        relu = mindspore.ops.ReLU()
-        layer = relu(input_shape=input_shape[1:])
-        #没有修改relu中的max-value=1.0，回头来修改
+        #layer = keras.layers.ReLU(max_value=1.0, input_shape=input_shape[1:])
+        relu6 = mindspore.ops.ReLU6()
+        layer = relu6()
+        #have no idea how to set max_value=1.0, now it is 6
         layer.name += '_insert'
         return layer
 
@@ -474,14 +480,17 @@ class LayerUtils:
 
     @staticmethod
     def activity_regularization_l1(input_shape):
-        import keras
-        layer = keras.layers.ActivityRegularization(l1=0.5, l2=0.0)
+        import mindspore
+        #layer = keras.layers.ActivityRegularization(l1=0.5, l2=0.0)
+        layer = mindspore.nn.L1Regularizer(0.5)
+        #not for sure whether it is right
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def activity_regularization_l2(input_shape):
         import keras
+        #未修改
         layer = keras.layers.ActivityRegularization(l1=0.0, l2=0.5)
         layer.name += '_insert'
         return layer

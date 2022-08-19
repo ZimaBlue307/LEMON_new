@@ -452,11 +452,16 @@ def LA_mut(model, new_layers=None, mutated_layer_indices=None):
                 assert shape_sw[i] == shape_w[i], '{}'.format(layer_name)
             tuples.append((sw, w))
 
-    import keras.backend as K
-    K.batch_set_value(tuples)
+    # import keras.backend as K
+    # K.batch_set_value(tuples)
     #batch_set_value,一次设置多个张量变量的值。
     #tuples：元组 (tensor, value) 的列表。 value 应该是一个 Numpy 数组。
-    #应该可以直接用mindspore.Tensor实现，但是得先知道tuples是什么
+    import mindspore
+    import numpy as np
+    for i in tuples[1]:
+        tuples[0] = mindspore.Tensor(tuples[1], mindspore.float32)
+    #not for sure.tuples[1]是一个numpy数组，还是多个numpy数组呢？
+        
     return new_model
 
 

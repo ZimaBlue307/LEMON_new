@@ -102,9 +102,13 @@ class LayerMatching:
         #different from keras.layers.Dense(units), units:输出空间维度
         #mindspore.nn.Dense needs two parameters: in_channels and out_channels        
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], units))
+        #在mindspore中，input_shape是channel_first;
+        #未修改
+        #在所有mindspore里，有关reshape的API都必须传入tensor本身才可以实现；
         layer_concat.append(keras.layers.Reshape(input_shape[1:]))
         #I guess input_shape[1:] is the target_shape(不包含表示batch size的轴,即不包含input_shape[0])
-        #mindspore.ops.Reshape(tensor, new_shape)，没法儿获得tensor啊？
+        #作用应该是确保input_shape保持不变；
+        #mindspore.ops.Reshape(tensor, new_shape)，怎么获得tensor呢？
         return layer_concat
 
     @staticmethod
@@ -126,10 +130,10 @@ class LayerMatching:
         import mindspore
         layer_concat = []
         #keras.layers.RepeatVector(n): repeat the input for n times
-        #may change into mindspore.numpy.repeat, but not for sure yet
-        layer_concat.append(keras.layers.RepeatVector(n))
-        
-        layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n)))#why here is a ","? now delete it
+        #may change into mindspore.numpy.repeat
+        #layer_concat.append(keras.layers.RepeatVector(n))
+        layer_concat.append(mindspore.Tensor.repeat(n, axis = 1)) #not for sure
+        layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n,)))#why here is a ","? 
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))#not for sure
         #layer_concat.append(keras.layers.Dense(input_shape[1])), input_shape[1] is units;
         return layer_concat
@@ -144,8 +148,9 @@ class LayerMatching:
     def cropping1d_dense(input_shape):
         import mindspore
         layer_concat = []
-        #layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
-        layer_concat.append(mindspore.dataset.vision.c_transforms.Crop((0,1), ()))#don't know what to do yet
+        #未修改
+        layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
+        # layer_concat.append(mindspore.dataset.vision.c_transforms.Crop((0,1), ()))#don't know what to do yet
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))
         return layer_concat
 
@@ -159,7 +164,10 @@ class LayerMatching:
     def cropping2d_dense(input_shape):
         import mindspore
         layer_concat = []
-        layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))#don't know what to do yet
+        #layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))
+        #cropping = tuple of 2 tuples of 2 ints:
+        #interpreted as ((top_crop, bottom_crop), (left_crop, right_crop))
+        layer_concat.append(mindspore.dataset.vision.c_transforms.Crop(coordinates = (1, 1), size = 1)) #not for sure
         layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3])))
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -178,6 +186,7 @@ class LayerMatching:
     def cropping3d_dense(input_shape):
         import mindspore
         layer_concat = []
+        #未修改
         layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))#don't know what to do yet
         #mindspore.dataset.vision.c_transforms.Crop, but not for sure yet.
         layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
@@ -384,6 +393,7 @@ class LayerMatching:
     def simple_rnn_dense(input_shape):
         import mindspore
         layer_concat = []
+        #未修改
         layer_concat.append(keras.layers.SimpleRNN(50))
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
         layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
@@ -431,10 +441,9 @@ class LayerMatching:
 
     @staticmethod
     def conv_lstm_2d_dense(input_shape):
-        #import keras
         import mindspore
         layer_concat = []
-        #先搁置
+        #未修改
         layer_concat.append(keras.layers.ConvLSTM2D(input_shape[-1], kernel_size=(1, 1), strides=(1, 1), padding='same', return_sequences=True))
         return layer_concat
 
