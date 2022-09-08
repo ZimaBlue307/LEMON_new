@@ -1,10 +1,12 @@
+#assuming all the input_shapes are channel first;
+
 import numpy as np
 import os
 import warnings
 np.random.seed(20200501)
 warnings.filterwarnings("ignore")
 warnings.filterwarnings("ignore")
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # 只显示 warning 和 Error
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # just showing warning and Error
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -133,12 +135,16 @@ class LayerUtils:
     @staticmethod
     def clone(layer):
         from scripts.tools.utils import ModelUtils
-        custom_objects = ModelUtils.custom_objects()
-        layer_config = layer.get_config()
+        custom_objects = ModelUtils.custom_objects() #no need to change;
+        #layer_config = layer.get_config()
+        layer_config = layer.parameters_dict()
+        # https://blog.csdn.net/m0_47256162/article/details/119677596
         if 'activation' in layer_config.keys():
             activation = layer_config['activation']
             if activation in custom_objects.keys():
                 layer_config['activation'] = 'relu'
+                #如何利用mindspore克隆一个layer呢？
+                #未修改
                 clone_layer = layer.__class__.from_config(layer_config)
                 clone_layer.activation = custom_objects[activation]
             else:
@@ -146,57 +152,61 @@ class LayerUtils:
         else:
             clone_layer = layer.__class__.from_config(layer_config)
         return clone_layer
-        # return layer.__class__.from_config(layer.get_config())
 
     @staticmethod
     def dense(input_shape):
         # input_shape = input_shape.as_list()
         import mindspore
-        layer = mindspore.nn.Dense(input_shape[-1], input_shape=(input_shape[1:],))
-        #这里的dense存在疑问：为什么传入两个参数呢？
+        layer = mindspore.nn.Dense(in_channels = input_shape[1], out_channels = input_shape[1])
+        #Dense(input_shape[-1], input_shape=(input_shape[1:],))
+        #what is input_shape parameter for? now just delete it
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        #input_shape = input_shape.as_list()
+        #as_list(): in keras, Convert a tuple to a list, report an error when it's not a tuple
+        input_shape = list(input_shape)
+        #print(input_shape)
         return len(input_shape) == 2 and input_shape[0] is None and input_shape[1] is not None
 
     @staticmethod
     def conv1d(input_shape):
         import mindspore
-        #layer = keras.layers.Conv1D(input_shape[-1], 3, strides=1, padding='same')
-        #keras里改变的是最后一维序列长度，而mindspore修改的是倒数第二维空间维度
-        layer = mindspore.nn.Conv1d(input_shape[-2] ,input_shape[-2], kernel_size=3, stride=1, pad_mode='same')
+        #layer = keras.layers.Conv1D(filters=input_shape[-1], kernel_size=3, strides=1, padding='same')
+        #filters: Integer, the dimensionality of the output space
+        # the default of has_bias is different in mindspore and keras
+        layer = mindspore.nn.Conv1d(in_channels = input_shape[1] ,out_channels = input_shape[1], kernel_size=3, stride=1, pad_mode='same', has_bias = True)
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def conv1d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def conv2d(input_shape):
         # input_shape = input_shape.as_list()
         import mindspore
         #layer = keras.layers.Conv2D(input_shape[-1], 3, strides=(1,1), padding='same')
-        #mindspore的Conv2d，输入的input_shape的倒数第三位是空间维度，C, H, W。修改data format
-        layer = mindspore.nn.Conv2d(input_shape[-1], input_shape[-1], kernel_size=3, strides=(1,1), pad_mode='same', data_format = 'NHWC')
+        layer = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size=3, strides=(1,1), pad_mode='same', has_bias = True) 
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def conv2d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        #input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def separable_conv_1d(input_shape):
         import keras
         #未修改
-        layer = keras.layers.SeparableConv1D(input_shape[-2], input_shape[-2], kernel_size = 3, strides=1, padding='same')
+        layer = keras.layers.SeparableConv1D(input_shape[1], input_shape[1], kernel_size = 3, strides=1, padding='same')
         #layer = keras.layers.SeparableConv1D(input_shape[-1], 3, strides=1, padding='same')
         #SeparableConv = DepthwiseConv + PointwiseConv
         layer.name += '_insert'
@@ -204,8 +214,8 @@ class LayerUtils:
 
     @staticmethod
     def separable_conv_1d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def separable_conv_2d(input_shape):
@@ -218,79 +228,75 @@ class LayerUtils:
 
     @staticmethod
     def separable_conv_2d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def depthwise_conv_2d(input_shape):
         import mindspore
         #layer = keras.layers.DepthwiseConv2D(3, strides=(1,1), padding='same')
-        layer = mindspore.nn.Conv2d(input_shape[-1], input_shape[-1], kernel_size = 3, stride=(1,1), pad_mode='same',group = input_shape[-1], data_format = 'NHWC')
+        layer = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size = 3, stride=(1,1), pad_mode='same',group = input_shape[1])
         #3 is kernel size
-        #DepthwiseConv2D实现步骤如下：1.输入拆分成单独的channel;
-        #Convolve each channel with an individual depthwise kernel with depth_multiplier output channels.
-        #沿channel轴连接卷积输出
-        #使用Conv2d替代，修改参数group即可
+        #If the group parameter is equal to in_channels and out_channels, 
+        #this 2D convolution layer also can be called 2D depthwise convolution layer. 
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def depthwise_conv_2d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def conv_2d_transpose(input_shape):
         import mindspore
-        layer = mindspore.nn.Conv2dTranspose(input_shape[-3], input_shape[-3], kernel_size = 3, stride=(1,1), pad_mode='same')
-        #same way to modify as mindspore.nn.Conv2d
-        #not for sure what does input_shape[-1] means, means filters?
-        #this can not change data_format; and mindspore.ops.Conv2DTranspose support NHWC,
-        # but need three input: tensor_out, weight, tensor_in
+        #keras.layers.Conv3DTranspose(input_shape[-1], 3, strides=(1,1,1), padding='same')
+        layer = mindspore.nn.Conv2dTranspose(input_shape[1], input_shape[1], 3, stride=(1,1), pad_mode='same')
+        #not sure about stride. in keras stride can have 3 integers, in mindspore, stride can only have 2 integers
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def conv_2d_transpose_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def conv_3d(input_shape):
         import mindspore
         #layer = keras.layers.Conv3D(input_shape[-1], 3, strides=(1,1,1), padding='same')
-        layer = mindspore.nn.Conv3d(input_shape[-4], input_shape[-4], kernel_size = 3, stride=(1,1,1), pad_mode='same')
-        #目前data_format仅支持NCDHW
+        layer = mindspore.nn.Conv3d(input_shape[1], input_shape[1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
+        #data_format currently only support “NCDHW”.
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def conv_3d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] >= 3 \
                and input_shape[2] is not None and input_shape[2] >= 3 \
-               and input_shape[3] is not None and input_shape[3] >= 3
+               and input_shape[3] is not None and input_shape[3] >= 3 \
+               and input_shape[4] is not None and input_shape[4] >= 3
 
     @staticmethod
     def conv_3d_transpose(input_shape):
         import mindspore
         #layer = keras.layers.Conv3DTranspose(input_shape[-1], 3, strides=(1,1,1), padding='same')
-        layer = mindspore.nn.Conv3dTranspose(input_shape[-4], input_shape[-4], kernel_size = 3, stride=(1,1,1), pad_mode='same')
-        #not for sure what does input_shape[-1] means
+        layer = mindspore.nn.Conv3dTranspose(input_shape[1], input_shape[1], kernel_size = 3, stride=(1,1,1), pad_mode='same')
         layer.name += '_insert'
         return layer
+    
 
     @staticmethod
     def conv_3d_transpose_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] >= 3 \
                and input_shape[2] is not None and input_shape[2] >= 3 \
-               and input_shape[3] is not None and input_shape[3] >= 3
+               and input_shape[3] is not None and input_shape[3] >= 3 \
+               and input_shape[4] is not None and input_shape[4] >= 3
 
 
 
@@ -303,22 +309,21 @@ class LayerUtils:
 
     @staticmethod
     def max_pooling_1d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def max_pooling_2d(input_shape):
         import mindspore
-        #can change the data_format. In keras, default data_format is channel_last
-        layer = mindspore.nn.MaxPool2d(kernel_size=(3, 3), stride=1, pad_mode='same', data_format = 'NHWC')
+        layer = mindspore.nn.MaxPool2d(kernel_size=(3, 3), stride=1, pad_mode='same')#in keras, data_format = 'NHWC', in mindspore, channel first
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def max_pooling_2d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def max_pooling_3d(input_shape):
@@ -330,11 +335,11 @@ class LayerUtils:
 
     @staticmethod
     def max_pooling_3d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] >= 3 \
                and input_shape[2] is not None and input_shape[2] >= 3 \
-               and input_shape[3] is not None and input_shape[3] >= 3
+               and input_shape[3] is not None and input_shape[3] >= 3 \
+               and input_shape[4] is not None and input_shape[4] >= 3
 
     @staticmethod
     def average_pooling_1d(input_shape):
@@ -346,22 +351,22 @@ class LayerUtils:
 
     @staticmethod
     def average_pooling_1d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def average_pooling_2d(input_shape):
         import mindspore
-        # can change the data format to ’NHWC’
-        layer = mindspore.nn.AvgPool2d(kernel_size=(3, 3), stride=1, pad_mode='same', data_format = 'NHWC')
+        # can change the data format to ’NHWC’, but we don't for now
+        layer = mindspore.nn.AvgPool2d(kernel_size=(3, 3), stride=1, pad_mode='same') #data_format = 'NHWC'
         layer.name += '_insert'
         return layer
 
     @staticmethod
     def average_pooling_2d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
-        return len(input_shape) == 4 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] >= 3 \
-               and input_shape[2] is not None and input_shape[2] >= 3
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None and input_shape[2] is not None and input_shape[2] >= 3 \
+               and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
     def average_pooling_3d(input_shape):
@@ -373,20 +378,20 @@ class LayerUtils:
 
     @staticmethod
     def average_pooling_3d_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] >= 3 \
                and input_shape[2] is not None and input_shape[2] >= 3 \
-               and input_shape[3] is not None and input_shape[3] >= 3
+               and input_shape[3] is not None and input_shape[3] >= 3 \
+               and input_shape[4] is not None and input_shape[4] >= 3
 
     @staticmethod
     def batch_normalization(input_shape):
         import mindspore
         #layer = keras.layers.BatchNormalization(input_shape=input_shape[1:])
         #the default value of 'training' parameter is False
-        #the keyword argument input_shape is arbitrary, 
-        # use it when this layer is the first layer of the model
-        layer = mindspore.ops.BatchNorm(epsilon = 0.001, momentum = 0.99, data_format = 'NHWC')
+        #the keyword argument input_shape is arbitrary, use it when this layer is the first layer of the model
+        #未修改。其实修改了，但是对于is_training参数不确定，默认是false；
+        layer = mindspore.ops.BatchNorm(epsilon = 0.001, momentum = 0.99)
         #使用时的输入和keras里的标准化层的输入有差别；
         layer.name += '_insert'
         return layer
@@ -415,9 +420,10 @@ class LayerUtils:
         import keras
         #layer = keras.layers.PReLU(input_shape=input_shape[1:], alpha_initializer='RandomNormal')
         #alpha_initializer是weights的初始化函数；
+        #not for sure
         RN = keras.initializers.RandomNormal(mean = 0, stddev = 0.05)
         weight = RN(input_shape)
-        layer = mindspore.nn.PReLU(input_shape[-1], weight)
+        layer = mindspore.nn.PReLU(input_shape[1], weight)
         layer.name += '_insert'
         return layer
 
@@ -431,6 +437,7 @@ class LayerUtils:
         elu = mindspore.nn.ELU()
         layer = elu
         #maybe do not need input_shape=input_shape[1:]
+        #input and output are tensors;
         layer.name += '_insert'
         return layer
 
@@ -442,9 +449,10 @@ class LayerUtils:
     def thresholded_relu_layer(input_shape):
         #ThresholdedReLU: f(x) = x for x > theta otherwise f(x) = 0
         #需要遍历tensor来实现，但是这里只传入input_shape；
-        #未修改
-        import keras
-        layer = keras.layers.ThresholdedReLU(input_shape=input_shape[1:])
+        #按照之前闫明学长的说法，先使用relu；
+        #layer = keras.layers.ThresholdedReLU(input_shape=input_shape[1:])
+        import mindspore
+        layer = mindspore.nn.ReLU()
         layer.name += '_insert'
         return layer
 
@@ -467,6 +475,8 @@ class LayerUtils:
     @staticmethod
     def relu_layer(input_shape):
         import mindspore
+        #未修改
+        #其实修改了，但是使用的是relu6
         #layer = keras.layers.ReLU(max_value=1.0, input_shape=input_shape[1:])
         relu6 = mindspore.ops.ReLU6()
         layer = relu6()
