@@ -69,6 +69,8 @@ if __name__ == '__main__':
     parse.add_argument("--model", type=str, help="model path")
     parse.add_argument("--mutate_op", type=str, help="model mutation operator")
     # add argument: checkpoint path
+    #reference website: 
+    #https://www.mindspore.cn/docs/zh-CN/r1.7/api_python/mindspore/mindspore.load_param_into_net.html?highlight=load_checkpoint
     parse.add_argument("--checkpoint_path", type=str, help="model checkpoint path")
     parse.add_argument("--save_path", type=str, help="model save path")
     parse.add_argument("--mutate_ratio", type=float, help="mutate ratio")

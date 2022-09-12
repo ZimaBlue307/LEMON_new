@@ -22,27 +22,52 @@ class ModelUtils:
 
     @staticmethod
     def model_copy(model, mode=''):
+        """LEMON_RAW is to clone each layer one by one and add them 
+        to the new model, so as to achieve the effect of 
+        completely replicating the seed model. 
+        (check clone function in scripts/mutation/mutation_utils.py)
+        Now we directly copy the seed model, get the new model, 
+        and then import the parameters into the new model
+        
+        get the network of the model;
+        get the ckpt of the model;
+        copy the network;
+        load the ckpt to the network
+        create a new model
+        """
+        
         from scripts.mutation.mutation_utils import LayerUtils
-        import keras
-        suffix = '_copy_' + mode
-        if model.__class__.__name__ == 'Sequential':
-            new_layers = []
-            for layer in model.layers:
-                new_layer = LayerUtils.clone(layer)
-                new_layer.name += suffix
-                new_layers.append(new_layer)
-            new_model = keras.Sequential(layers=new_layers, name=model.name + suffix)
-        else:
-            new_model = ModelUtils.functional_model_operation(model, suffix=suffix)
-
-        s = datetime.datetime.now()
-        new_model.set_weights(model.get_weights())
-        e1 = datetime.datetime.now()
-        td1 = e1 - s
-        h, m, s = ToolUtils.get_HH_mm_ss(td1)
-        print("Set model weights! {} hour,{} min,{} sec".format(h, m, s))
-        del model
+        import copy
+        import mindspore
+        from mindspore import load_checkpoint, load_param_into_net
+        mindspore.save_checkpoint(model, "/tmp/model.ckpt")
+        new_model = copy.deepcopy(model)
+        param_dict = load_checkpoint("resnet50-2_32.ckpt")
+        load_param_into_net(new_model, param_dict)
         return new_model
+        #not for sure
+        #Keras 中有两种可用的模型：一种是Sequential 模型，另一种是用于功能 API 的模型类
+        
+        # suffix = '_copy_' + mode
+        # if model.__class__.__name__ == 'Sequential':
+        #     new_layers = []
+        #     for layer in model.layers:
+        #         new_layer = LayerUtils.clone(layer)
+        #         new_layer.name += suffix
+        #         new_layers.append(new_layer)
+        #     new_model = keras.Sequential(layers=new_layers, name=model.name + suffix)
+        # else:
+        #new_model = ModelUtils.functional_model_operation(model, suffix=suffix)
+
+        # s = datetime.datetime.now()
+        # new_model.set_weights(model.get_weights())
+        # e1 = datetime.datetime.now()
+        # td1 = e1 - s
+        # h, m, s = ToolUtils.get_HH_mm_ss(td1)
+        # print("Set model weights! {} hour,{} min,{} sec".format(h, m, s))
+        # del model
+        #return new_model
+        
 
     @staticmethod
     def functional_model_operation(model, operation=None, suffix=None):
@@ -189,6 +214,7 @@ class ModelUtils:
         return inputs
 
     @staticmethod
+    #done
     def generate_permutation(size_of_permutation, extract_portion):
         assert extract_portion <= 1
         num_of_extraction = math.floor(size_of_permutation * extract_portion)
@@ -197,6 +223,7 @@ class ModelUtils:
         return permutation
 
     @staticmethod
+    #done
     def shuffle(a):
         shuffled_a = np.empty(a.shape, dtype=a.dtype)
         length = len(a)

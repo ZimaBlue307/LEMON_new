@@ -1,3 +1,4 @@
+#assuming all the input_shapes are channel first;
 from scripts.tools import utils
 import math
 from typing import *
@@ -33,9 +34,9 @@ def _shuffle_conv2d(weights, mutate_ratio):
             for output_channel in mutate_output_channels:
                 copy_list = val.copy()
                 copy_list = np.reshape(copy_list,(filter_width * filter_height * num_of_input_channels, num_of_output_channels))
-                selected_list = copy_list[:,output_channel]
+                #selected_list = copy_list[:,output_channel] # may need to change data format
                 shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
-                copy_list[:, output_channel] = shuffle_selected_list
+                copy_list[:, output_channel] = shuffle_selected_list #may need to change too
                 val = np.reshape(copy_list,(filter_width, filter_height, num_of_input_channels, num_of_output_channels))
         new_weights.append(val)
     return new_weights
@@ -51,9 +52,9 @@ def _shuffle_dense(weights,mutate_ratio):
             mutate_output_dims = utils.ModelUtils.generate_permutation(output_dim, mutate_ratio)
             copy_list = val.copy()
             for output_dim in mutate_output_dims:
-                selected_list = copy_list[:, output_dim]
+                selected_list = copy_list[:, output_dim] #may need to change the data format
                 shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
-                copy_list[:, output_dim] = shuffle_selected_list
+                copy_list[:, output_dim] = shuffle_selected_list #may need to change the data format
             val = copy_list
         new_weights .append(val)
     return new_weights
@@ -62,7 +63,9 @@ def _shuffle_dense(weights,mutate_ratio):
 def _LA_model_scan(model, new_layers, mutated_layer_indices=None):
 
     layer_utils = LayerUtils()
-    layers = model.layers
+    #layers = model.layers how to change this ?
+    layers = model.cells
+    #or layers = model.cells_and_names() not for sure
     # new layers can never be added after the last layer
     positions_to_add = np.arange(len(layers) - 1) if mutated_layer_indices is None else mutated_layer_indices
     _assert_indices(positions_to_add, len(layers))
@@ -71,11 +74,14 @@ def _LA_model_scan(model, new_layers, mutated_layer_indices=None):
     available_new_layers = [layer for layer in
                             layer_utils.available_model_level_layers.keys()] if new_layers is None else new_layers
     for i, layer in enumerate(layers):
-        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower():
+        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower(): 
+            #what does lower mean?——把所有大写字母转换成小写
+            #here needs to change;
             break
         if i in positions_to_add:
             for available_new_layer in available_new_layers:
                 if layer_utils.is_input_legal[available_new_layer](layer.output.shape):
+                    #layer.output.shape needs to change
                     if i not in insertion_points.keys():
                         insertion_points[i] = [available_new_layer]
                     else:
@@ -405,6 +411,7 @@ def LA_mut(model, new_layers=None, mutated_layer_indices=None):
     available_new_layers = insertion_points[layer_index_to_insert]
     layer_name_to_insert = available_new_layers[np.random.randint(0, len(available_new_layers))]
     mylogger.info('insert {} after {}'.format(layer_name_to_insert, LA_model.layers[layer_index_to_insert].name))
+    
     # insert new layer
     if model.__class__.__name__ == 'Sequential':
         import keras

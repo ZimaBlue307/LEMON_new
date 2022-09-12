@@ -134,17 +134,19 @@ class LayerUtils:
 
     @staticmethod
     def clone(layer):
+        import copy
         from scripts.tools.utils import ModelUtils
         custom_objects = ModelUtils.custom_objects() #no need to change;
         #layer_config = layer.get_config()
         layer_config = layer.parameters_dict()
         # https://blog.csdn.net/m0_47256162/article/details/119677596
+        #Get the parameter dictionary of this Cell, including its subclassed sell by default
         if 'activation' in layer_config.keys():
             activation = layer_config['activation']
             if activation in custom_objects.keys():
                 layer_config['activation'] = 'relu'
-                #如何利用mindspore克隆一个layer呢？
-                #未修改
+                #如何利用mindspore克隆一个layer呢？未修改
+                #https://gitee.com/mindspore/mindspore/issues/I4FJF7?from=project-issue
                 clone_layer = layer.__class__.from_config(layer_config)
                 clone_layer.activation = custom_objects[activation]
             else:
@@ -204,13 +206,13 @@ class LayerUtils:
 
     @staticmethod
     def separable_conv_1d(input_shape):
-        import keras
-        #未修改
-        layer = keras.layers.SeparableConv1D(input_shape[1], input_shape[1], kernel_size = 3, strides=1, padding='same')
-        #layer = keras.layers.SeparableConv1D(input_shape[-1], 3, strides=1, padding='same')
+        import mindspore
+        #layer = keras.layers.SeparableConv1D(input_shape[1], input_shape[1], kernel_size = 3, strides=1, padding='same')
         #SeparableConv = DepthwiseConv + PointwiseConv
+        layer1 = mindspore.nn.Conv1d(input_shape[1], input_shape[1], kernel_size = 3, stride=1, group = input_shape[1], pad_mode = 'same')
+        layer2 = mindspore.nn.Conv1d(input_shape[1], input_shape[1], kernel_size = 1, stride=1, pad_mode = 'same')
         layer.name += '_insert'
-        return layer
+        return layer1, layer2
 
     @staticmethod
     def separable_conv_1d_input_legal(input_shape):
@@ -219,12 +221,14 @@ class LayerUtils:
 
     @staticmethod
     def separable_conv_2d(input_shape):
-        import keras
-        #未修改
-        layer = keras.layers.SeparableConv2D(input_shape[-1], 3, strides=(1,1), padding='same')
-        #深度可分离的二维卷积。
-        layer.name += '_insert'
-        return layer
+        import mindspore
+        #layer = keras.layers.SeparableConv2D(input_shape[-1], 3, strides=(1,1), padding='same')
+        #https://gitee.com/mindspore/mindspore/issues/I5QG5I?from=project-issue
+        layer1 = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size = 3, stride=(1,1), pad_mode='same',group = input_shape[1])
+        layer2 = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size = 1, stride=1)
+        layer1.name += '_insert'
+        layer2.name += '_insert'
+        return layer1, layer2
 
     @staticmethod
     def separable_conv_2d_input_legal(input_shape):
