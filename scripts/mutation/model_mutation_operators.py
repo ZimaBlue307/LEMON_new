@@ -115,21 +115,24 @@ def _MLA_model_scan(model, new_layers, mutated_layer_indices=None):
 
 
 def _LC_and_LR_scan(model, mutated_layer_indices):
-    layers = model.layers
-
+    layers = model.cells_and_names()
+    #get the number of layers
+    num_layer=0
+    for i in layers:
+        num_layers=num_layers + 1
+    num_layers = num_layers - 1
     # the last layer should not be copied or removed
-    mutated_layer_indices = np.arange(len(layers) - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(mutated_layer_indices, len(layers))
+    mutated_layer_indices = np.arange(num_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(mutated_layer_indices, num_layers)
 
     available_layer_indices = []
     for i, layer in enumerate(layers):
-        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower():
+        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower():#这个循环需要修改
             break
         if i in mutated_layer_indices:
             # InputLayer should not be copied or removed
             from keras.engine.input_layer import InputLayer
             if isinstance(layer, InputLayer):
-            #判断一个对象是否是一个已知的类型类似, isinstance(object, classinfo)
                 continue
             # layers with multiple input tensors can't be copied or removed
             if isinstance(layer.input, list) and len(layer.input) > 1:
@@ -356,7 +359,7 @@ def NS_mut(model, mutated_layer_indices=None):
 
     return NS_model
 
-
+#removes the activation function of a layer.
 def ARem_mut(model, mutated_layer_indices=None):
     ARem_model = utils.ModelUtils.model_copy(model, 'ARem')
     layers = ARem_model.layers
@@ -372,7 +375,8 @@ def ARem_mut(model, mutated_layer_indices=None):
             break
     return ARem_model
 
-
+#replaces the activation function of a layer 
+# with a randomly selected activation function
 def ARep_mut(model, new_activations=None, mutated_layer_indices=None):
 
     activation_utils = ActivationUtils()
@@ -389,7 +393,9 @@ def ARep_mut(model, new_activations=None, mutated_layer_indices=None):
             break
     return ARep_model
 
-
+#Layer Addition: selects a layer, whose input shape and
+#output shape are consistent, from the universal set of layers,
+#and then inserts it to a compatible position in the model.
 def LA_mut(model, new_layers=None, mutated_layer_indices=None):
     layer_utils = LayerUtils()
     if new_layers is not None:
@@ -414,8 +420,8 @@ def LA_mut(model, new_layers=None, mutated_layer_indices=None):
     
     # insert new layer
     if model.__class__.__name__ == 'Sequential':
-        import keras
-        new_model = keras.models.Sequential()
+        import mindspore
+        new_model = mindspore.nn.SequentialCell()
         for i, layer in enumerate(LA_model.layers):
             new_layer = LayerUtils.clone(layer)
             new_model.add(new_layer)
@@ -471,7 +477,7 @@ def LA_mut(model, new_layers=None, mutated_layer_indices=None):
         
     return new_model
 
-
+#compared with LA, the input and output don't need to be consistent
 def MLA_mut(model, new_layers = None, mutated_layer_indices=None):
     # mutiple layers addition
     layer_matching = LayerMatching()
@@ -498,8 +504,9 @@ def MLA_mut(model, new_layers = None, mutated_layer_indices=None):
     mylogger.info('choose to insert {} after {}'.format(layer_name_to_insert, MLA_model.layers[layer_index_to_insert].name))
     # insert new layers
     if model.__class__.__name__ == 'Sequential':
-        import keras
-        new_model = keras.models.Sequential()
+        import mindspore
+        new_model = mindspore.nn.SequentialCell()
+        
         for i, layer in enumerate(MLA_model.layers):
             new_layer = LayerUtils.clone(layer)
             # new_layer.name += "_copy"
@@ -558,7 +565,9 @@ def MLA_mut(model, new_layers = None, mutated_layer_indices=None):
 
     return new_model
 
-
+#layer Copy: copies a layer, whose input shape and out-put 
+#shape are consistent, and then inserts the copied layer
+#to concatenate the original layer
 def LC_mut(model, mutated_layer_indices=None):
     LC_model = utils.ModelUtils.model_copy(model, 'LC')
     available_layer_indices = _LC_and_LR_scan(LC_model, mutated_layer_indices)
@@ -574,8 +583,8 @@ def LC_mut(model, mutated_layer_indices=None):
     mylogger.info('choose to copy layer {}'.format(LC_model.layers[copy_layer_index].name))
 
     if model.__class__.__name__ == 'Sequential':
-        import keras
-        new_model = keras.models.Sequential()
+        import mindspore
+        new_model = mindspore.nn.SequentialCell()
         for i, layer in enumerate(LC_model.layers):
             new_model.add(LayerUtils.clone(layer))
             if i == copy_layer_index:
@@ -629,10 +638,10 @@ def LC_mut(model, mutated_layer_indices=None):
     K.batch_set_value(tuples)
     return new_model
 
-
+#Layer Removal: removes a layer, whose input shape and output shape are consistent
 def LR_mut(model, mutated_layer_indices=None):
-    LR_model = utils.ModelUtils.model_copy(model, 'LR')
-    available_layer_indices = _LC_and_LR_scan(LR_model, mutated_layer_indices)
+    LR_model = utils.ModelUtils.model_copy(model, 'LR') #model copy function, jump for now
+    available_layer_indices = _LC_and_LR_scan(LR_model, mutated_layer_indices) #_LC_and_LR_scan also need to change
 
     if len(available_layer_indices) == 0:
         mylogger.warning('no appropriate layer to remove (input and output shape should be same)')
@@ -642,8 +651,8 @@ def LR_mut(model, mutated_layer_indices=None):
     remove_layer_index = available_layer_indices[-1]
     mylogger.info('choose to remove layer {}'.format(LR_model.layers[remove_layer_index].name))
     if model.__class__.__name__ == 'Sequential':
-        import keras
-        new_model = keras.models.Sequential()
+        import mindspore
+        new_model = mindspore.nn.SequentialCell()
         for i, layer in enumerate(LR_model.layers):
             if i != remove_layer_index:
                 new_layer = LayerUtils.clone(layer)
@@ -682,7 +691,7 @@ def LR_mut(model, mutated_layer_indices=None):
     K.batch_set_value(tuples)
     return new_model
 
-
+#Layer Switch: switches two layers, both of which have the same input shape and output shape
 def LS_mut(model):
     LS_model = utils.ModelUtils.model_copy(model,"LS")
     shape_dict = _LS_scan(LS_model)
@@ -706,7 +715,7 @@ def LS_mut(model):
     if model.__class__.__name__ == 'Sequential':
         #import keras
         import mindspore
-        new_model = keras.Sequential()
+        new_model = mindspore.nn.SequentialCell()
         for i, layer in enumerate(layers):
             if i == choose_index[0]:
                 new_model.add(LayerUtils.clone(layers[choose_index[1]]))
