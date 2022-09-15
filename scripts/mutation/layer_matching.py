@@ -1,3 +1,5 @@
+#assuming all the input_shapes are channel first;
+
 import os
 import warnings
 warnings.filterwarnings("ignore")
@@ -61,6 +63,7 @@ class LayerMatching:
         self.layer_concats['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense
         self.input_legal['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense_input_legal
 
+    #done
     @staticmethod
     def flatten(input_shape):
         #import keras
@@ -68,10 +71,11 @@ class LayerMatching:
         import mindspore
         return mindspore.nn.Flatten()
         
-
+    #done
     @staticmethod
     def flatten_constraints(input_shape):
-        input_shape = input_shape.as_list()
+        #input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         input_shape_len = len(input_shape)
         constraints = []
         if input_shape_len < 2:
@@ -89,31 +93,29 @@ class LayerMatching:
 
     # --------------------------------------------
 
+    #不知道怎么实现reshape层
     @staticmethod
     def flatten_dense(input_shape):
         import mindspore
+        import keras
         layer_concat = []
         layer_concat.append(mindspore.nn.Flatten())
         units = 1
         for i in range(len(input_shape)):
             if i == 0:
-                continue
+                continue #jump batch_size
             units *= input_shape[i]
         #different from keras.layers.Dense(units), units:输出空间维度
         #mindspore.nn.Dense needs two parameters: in_channels and out_channels        
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], units))
-        #在mindspore中，input_shape是channel_first;
-        #未修改
-        #在所有mindspore里，有关reshape的API都必须传入tensor本身才可以实现；
+        layer_concat.append(mindspore.nn.Dense(input_shape[1], units))
         layer_concat.append(keras.layers.Reshape(input_shape[1:]))
-        #I guess input_shape[1:] is the target_shape(不包含表示batch size的轴,即不包含input_shape[0])
-        #作用应该是确保input_shape保持不变；
         #mindspore.ops.Reshape(tensor, new_shape)，怎么获得tensor呢？
         return layer_concat
 
+    #done
     @staticmethod
     def flatten_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         is_legal = len(input_shape) > 3 and input_shape[0] is None
         concat_size = 1
         for i, dim in enumerate(input_shape):
@@ -135,12 +137,11 @@ class LayerMatching:
         layer_concat.append(mindspore.Tensor.repeat(n, axis = 1)) #not for sure
         layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n,)))#why here is a ","? 
         layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))#not for sure
-        #layer_concat.append(keras.layers.Dense(input_shape[1])), input_shape[1] is units;
         return layer_concat
 
     @staticmethod
     def repeat_vector_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 2 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[1] <= LayerMatching.concat_size_limit
 
@@ -156,7 +157,7 @@ class LayerMatching:
 
     @staticmethod
     def cropping1d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] > 2 \
                and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
 
@@ -175,7 +176,7 @@ class LayerMatching:
 
     @staticmethod
     def cropping2d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None and input_shape[1] > 2 \
                and input_shape[2] is not None and input_shape[2] > 2 \
@@ -196,7 +197,7 @@ class LayerMatching:
 
     @staticmethod
     def cropping3d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None and input_shape[1] > 2 \
                and input_shape[2] is not None and input_shape[2] > 2 \
@@ -214,7 +215,7 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_1d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
 
@@ -230,7 +231,7 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_2d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None and input_shape[2] is not None and input_shape[3] is not None \
                and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
@@ -249,7 +250,7 @@ class LayerMatching:
 
     @staticmethod
     def upsampling_3d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -268,7 +269,7 @@ class LayerMatching:
 
     @staticmethod
     def zeropadding_1d_conv_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None \
                and input_shape[1] is not None and input_shape[2] is not None \
                and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
@@ -283,7 +284,7 @@ class LayerMatching:
 
     @staticmethod
     def zeropadding_2d_conv_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -300,7 +301,7 @@ class LayerMatching:
 
     @staticmethod
     def zeropadding_3d_conv_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -328,7 +329,7 @@ class LayerMatching:
 
     @staticmethod
     def global_pooling_1d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
 
@@ -352,7 +353,7 @@ class LayerMatching:
 
     @staticmethod
     def global_pooling_2d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -381,7 +382,7 @@ class LayerMatching:
 
     @staticmethod
     def global_pooling_3d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -401,7 +402,7 @@ class LayerMatching:
 
     @staticmethod
     def simple_rnn_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
@@ -419,7 +420,7 @@ class LayerMatching:
 
     @staticmethod
     def gru_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
 
@@ -435,7 +436,7 @@ class LayerMatching:
 
     @staticmethod
     def lstm_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
 
@@ -449,7 +450,7 @@ class LayerMatching:
 
     @staticmethod
     def conv_lstm_2d_dense_input_legal(input_shape):
-        input_shape = input_shape.as_list()
+        input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[2] > 3 \
                and input_shape[3] is not None and input_shape[3] > 3 \

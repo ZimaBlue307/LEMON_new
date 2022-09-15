@@ -1,4 +1,5 @@
 #assuming all the input_shapes are channel first;
+from operator import truediv
 from scripts.tools import utils
 import math
 from typing import *
@@ -16,13 +17,33 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 mylogger = Logger()
 
+#add function to determine whether the layer is an activation function
+def is_layer_in_activation_list(layer):
+    import mindspore
+    activation_list = [mindspore.nn.layer.activation.Softmin, mindspore.nn.layer.activation.Softmax, mindspore.nn.layer.activation.LogSoftmax,
+                       mindspore.nn.layer.activation.ReLU, mindspore.nn.layer.activation.ReLU6, mindspore.nn.layer.activation.RReLU,
+                       mindspore.nn.layer.activation.SeLU, mindspore.nn.layer.activation.SiLU, mindspore.nn.layer.activation.Tanh,
+                       mindspore.nn.layer.activation.Tanhshrink, mindspore.nn.layer.activation.Hardtanh, mindspore.nn.layer.activation.GELU,
+                       mindspore.nn.layer.activation.FastGelu, mindspore.nn.layer.activation.Sigmoid, mindspore.nn.layer.activation.Softsign,
+                       mindspore.nn.layer.activation.PReLU, mindspore.nn.layer.activation.LeakyReLU, mindspore.nn.layer.activation.HSigmoid, 
+                       mindspore.nn.layer.activation.HSwish, mindspore.nn.layer.activation.ELU, mindspore.nn.layer.activation.LogSigmoid,
+                       mindspore.nn.layer.activation.LRN, mindspore.nn.layer.activation.SoftShrink, mindspore.nn.layer.activation.HShrink,
+                       mindspore.nn.layer.activation.CELU, mindspore.nn.layer.activation.Threshold, mindspore.nn.layer.activation.Mish
+                       ]
+    for i in activation_list:
+        if isinstance(layer, i):
+            return True
+    return False
 
-def _assert_indices(mutated_layer_indices: List[int] , depth_layer: int):
+
+#done
+def _assert_indices(mutated_layer_indices: List[int] , depth_layer: int):#done
 
     assert max(mutated_layer_indices) < depth_layer,"Max index should be less than layer depth"
     assert min(mutated_layer_indices) >= 0,"Min index should be greater than or equal to zero"
 
 
+#done
 def _shuffle_conv2d(weights, mutate_ratio):
     new_weights = []
     for val in weights:
@@ -34,14 +55,15 @@ def _shuffle_conv2d(weights, mutate_ratio):
             for output_channel in mutate_output_channels:
                 copy_list = val.copy()
                 copy_list = np.reshape(copy_list,(filter_width * filter_height * num_of_input_channels, num_of_output_channels))
-                #selected_list = copy_list[:,output_channel] # may need to change data format
+                selected_list = copy_list[:,output_channel] #what does this mean?——have nothing to do with shape_format
                 shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
-                copy_list[:, output_channel] = shuffle_selected_list #may need to change too
+                copy_list[:, output_channel] = shuffle_selected_list
                 val = np.reshape(copy_list,(filter_width, filter_height, num_of_input_channels, num_of_output_channels))
         new_weights.append(val)
     return new_weights
 
 
+#done
 def _shuffle_dense(weights,mutate_ratio):
     new_weights = []
     for val in weights:
@@ -52,31 +74,37 @@ def _shuffle_dense(weights,mutate_ratio):
             mutate_output_dims = utils.ModelUtils.generate_permutation(output_dim, mutate_ratio)
             copy_list = val.copy()
             for output_dim in mutate_output_dims:
-                selected_list = copy_list[:, output_dim] #may need to change the data format
+                selected_list = copy_list[:, output_dim]
                 shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
-                copy_list[:, output_dim] = shuffle_selected_list #may need to change the data format
+                copy_list[:, output_dim] = shuffle_selected_list
             val = copy_list
         new_weights .append(val)
     return new_weights
 
-
+#left layer.output.shape unmodified
 def _LA_model_scan(model, new_layers, mutated_layer_indices=None):
 
     layer_utils = LayerUtils()
-    #layers = model.layers how to change this ?
-    layers = model.cells
-    #or layers = model.cells_and_names() not for sure
+    #layers = model.layers #how to change this ?
+    
+    layers = model.cells_and_names()
+    len_layers = 0#count how many layers a model have
+    for layer in layers:
+        len_layers = len_layers + 1
+    len_layers = len_layers - 1
+    
+    
     # new layers can never be added after the last layer
-    positions_to_add = np.arange(len(layers) - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(positions_to_add, len(layers))
+    positions_to_add = np.arange(len_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len_layers)
 
     insertion_points = {}
+    #here might not need to change; not for sure
     available_new_layers = [layer for layer in
                             layer_utils.available_model_level_layers.keys()] if new_layers is None else new_layers
+    
     for i, layer in enumerate(layers):
-        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower(): 
-            #what does lower mean?——把所有大写字母转换成小写
-            #here needs to change;
+        if is_layer_in_activation_list(layer[1]): 
             break
         if i in positions_to_add:
             for available_new_layer in available_new_layers:
@@ -88,18 +116,25 @@ def _LA_model_scan(model, new_layers, mutated_layer_indices=None):
                         insertion_points[i].append(available_new_layer)
     return insertion_points
 
-
+#left layer.output.shape unmodified, and file layer_matching.py need to change too
 def _MLA_model_scan(model, new_layers, mutated_layer_indices=None):
-    layer_matching = LayerMatching()
-    layers = model.layers
+    layer_matching = LayerMatching()# need to change file LayerMatching
+    #layers = model.layers
+    layers = model.cells_and_names()
+    len_layers = 0#count how many layers a model have
+    for layer in layers:
+        len_layers = len_layers + 1
+    len_layers = len_layers - 1
+    
+    
     # new layers can never be added after the last layer
-    positions_to_add = np.arange(len(layers) - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(positions_to_add, len(layers))
+    positions_to_add = np.arange(len_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len_layers)
 
     insertion_points = {}
     available_new_layers = [layer for layer in layer_matching.layer_concats.keys()] if new_layers is None else new_layers
     for i, layer in enumerate(layers):
-        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower():
+        if is_layer_in_activation_list(layer[1]): 
             break
         if i in positions_to_add:
             for available_new_layer in available_new_layers:
@@ -113,21 +148,21 @@ def _MLA_model_scan(model, new_layers, mutated_layer_indices=None):
                         insertion_points[i].append(available_new_layer)
     return insertion_points
 
-
+#left layer.input/output.shape unmodified
 def _LC_and_LR_scan(model, mutated_layer_indices):
     layers = model.cells_and_names()
-    #get the number of layers
-    num_layer=0
-    for i in layers:
-        num_layers=num_layers + 1
-    num_layers = num_layers - 1
-    # the last layer should not be copied or removed
-    mutated_layer_indices = np.arange(num_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(mutated_layer_indices, num_layers)
+    len_layers = 0#count how many layers a model have
+    for layer in layers:
+        len_layers = len_layers + 1
+    len_layers = len_layers - 1
+
+    # new layers can never be added after the last layer
+    positions_to_add = np.arange(len_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len_layers)
 
     available_layer_indices = []
     for i, layer in enumerate(layers):
-        if hasattr(layer, 'activation') and 'softmax' in layer.activation.__name__.lower():#这个循环需要修改
+        if is_layer_in_activation_list(layer[1]): 
             break
         if i in mutated_layer_indices:
             # InputLayer should not be copied or removed
@@ -175,10 +210,20 @@ def GF_mut(model, mutation_ratio, distribution='normal', STD=0.1, lower_bound=No
 
     mylogger.info('copying model...')
 
-    GF_model = utils.ModelUtils.model_copy(model, 'GF')
+    GF_model = utils.ModelUtils.model_copy(model, 'GF')#need to change
     mylogger.info('model copied')
-    chosed_index = np.random.randint(0, len(GF_model.layers))
+    
+    layers = model.cells_and_names()
+    
+    len_GF_model_layers = 0#count how many layers a model have
+    for layer in layers:
+        len_GF_model_layers = len_GF_model_layers + 1
+    len_GF_model_layers = len_GF_model_layers - 1
+    
+    chosed_index = np.random.randint(0, len_GF_model_layers)
+    
     layer = GF_model.layers[chosed_index]
+    
     mylogger.info('executing mutation of {}'.format(layer.name))
     weights = layer.get_weights()
     new_weights = []
@@ -393,17 +438,17 @@ def ARep_mut(model, new_activations=None, mutated_layer_indices=None):
             break
     return ARep_model
 
-#Layer Addition: selects a layer, whose input shape and
-#output shape are consistent, from the universal set of layers,
-#and then inserts it to a compatible position in the model.
+# Layer Addition: selects a layer, whose input shape and
+# output shape are consistent and then inserts it to a 
+# compatible position in the model.
 def LA_mut(model, new_layers=None, mutated_layer_indices=None):
-    layer_utils = LayerUtils()
+    layer_utils = LayerUtils()#need to change
     if new_layers is not None:
         for layer in new_layers:
             if layer not in layer_utils.available_model_level_layers.keys():
                 mylogger.error('Layer {} is not supported.'.format(layer))
                 raise Exception('Layer {} is not supported.'.format(layer))
-    LA_model = utils.ModelUtils.model_copy(model, 'LA')
+    LA_model = utils.ModelUtils.model_copy(model, 'LA')#need to change
 
     insertion_points = _LA_model_scan(LA_model, new_layers, mutated_layer_indices)
     if len(insertion_points.keys()) == 0:

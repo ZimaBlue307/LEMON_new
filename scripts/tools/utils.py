@@ -45,9 +45,8 @@ class ModelUtils:
         param_dict = load_checkpoint("resnet50-2_32.ckpt")
         load_param_into_net(new_model, param_dict)
         return new_model
-        #not for sure
-        #Keras 中有两种可用的模型：一种是Sequential 模型，另一种是用于功能 API 的模型类
-        
+        # from scripts.mutation.mutation_utils import LayerUtils
+        # import keras
         # suffix = '_copy_' + mode
         # if model.__class__.__name__ == 'Sequential':
         #     new_layers = []
@@ -57,7 +56,7 @@ class ModelUtils:
         #         new_layers.append(new_layer)
         #     new_model = keras.Sequential(layers=new_layers, name=model.name + suffix)
         # else:
-        #new_model = ModelUtils.functional_model_operation(model, suffix=suffix)
+        #     new_model = ModelUtils.functional_model_operation(model, suffix=suffix)
 
         # s = datetime.datetime.now()
         # new_model.set_weights(model.get_weights())
@@ -66,7 +65,7 @@ class ModelUtils:
         # h, m, s = ToolUtils.get_HH_mm_ss(td1)
         # print("Set model weights! {} hour,{} min,{} sec".format(h, m, s))
         # del model
-        #return new_model
+        # return new_model
         
 
     @staticmethod
@@ -220,15 +219,17 @@ class ModelUtils:
         num_of_extraction = math.floor(size_of_permutation * extract_portion)
         permutation = np.random.permutation(size_of_permutation)
         permutation = permutation[:num_of_extraction]
+        #permutation等于permutation的前num_of_extraction位；
         return permutation
 
     @staticmethod
     #done
     def shuffle(a):
         shuffled_a = np.empty(a.shape, dtype=a.dtype)
+        #numpy.empty 方法用来创建一个指定形状（shape）、数据类型（dtype）且未初始化的数组
         length = len(a)
-        permutation = np.random.permutation(length)
-        index_permutation = np.arange(length)
+        permutation = np.random.permutation(length)#随机生成一个length长度的array
+        index_permutation = np.arange(length)#生成array[0,1,2..., length-1]
         shuffled_a[permutation] = a[index_permutation]
         return shuffled_a
 
