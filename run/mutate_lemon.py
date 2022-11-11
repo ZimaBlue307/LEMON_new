@@ -46,6 +46,7 @@ def partially_nan_or_inf(predictions, bk_num):
     else:
         raise Exception("wrong backend amounts")
 
+
 def get_selector_by_startegy_name(mutator_s, mutant_s):
 
     mutant_strategy_dict = {"ROULETTE":Roulette}
@@ -109,14 +110,14 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
     mutant_history = []
 
     # get mutator selection strategy
-    origin_model_name = "{}_origin0.h5".format(exp)
+    # origin_model_name = "{}_origin0".format(exp)
+    origin_model_name = "{}_origin".format(exp)
     origin_save_path = os.path.join(mut_dir, origin_model_name)
     mutator_selector_func, mutant_selector_func = get_selector_by_startegy_name(mutator_strategy,mutant_strategy)
     # [origin_model_name] means seed pool only contains initial model at beginning.
     mutator_selector, mutant_selector = mutator_selector_func(mutate_ops), mutant_selector_func([origin_model_name],
                                                                                                 capacity=mutate_num + 1)
-
-    shutil.copy(src=filename, dst=origin_save_path)
+    shutil.copytree(filename, origin_save_path)
     origin_model_status, res_dict, accumulative_inconsistency, _ = get_model_prediction(res_dict,
                                                                                         origin_save_path,
                                                                                         origin_model_name, exp,
@@ -142,16 +143,19 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
         mutator = mutator_selector.mutators[selected_op]
         mutant = mutant_selector.mutants[picked_seed]
 
-        new_seed_name = "{}-{}{}.h5".format(picked_seed[:-3], selected_op, mutate_op_history[selected_op])
+
+        #new seed name is a folder name, including ckpt and python file
+        new_seed_name = "{}_{}{}".format(picked_seed[:-3], selected_op, mutate_op_history[selected_op])
         # seed name would not be duplicate
         if new_seed_name not in mutant_selector.mutants.keys():
             new_seed_path = os.path.join(mut_dir, new_seed_name)
             picked_seed_path = os.path.join(mut_dir, picked_seed)
             mutate_st = datetime.datetime.now()
-            mutate_status = os.system("{}/lemon/bin/python -m  scripts.mutation.model_mutation_generators --model {} "
-                                      "--mutate_op {} --save_path {} --mutate_ratio {}".format(python_prefix,
+            mutate_status = os.system("{}/lemon/bin/python -m  scripts.mutation.model_mutation_generators --model_path {} "
+                                      "--mutate_op {} --checkpoint_path {} --save_path {} --mutate_ratio {}".format(python_prefix,
                                                                                                picked_seed_path,
                                                                                                selected_op,
+                                                                                               picked_seed_path,
                                                                                                new_seed_path,
                                                                                                flags.mutate_ratio))
             mutate_et = datetime.datetime.now()
@@ -207,7 +211,9 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
     return res_dict
 
 
-def generate_metrics_result(res_dict, predict_output, model_idntfr):
+#res_dict: 例如{'D_MAD': {}} <class 'dict'>
+#model_idntfr: 例如resnet20_cifar100_orig <class 'str'>
+def generate_metrics_result(res_dict, predict_output, model_idntfr, test_size):
     mutate_logger.info("Generating Metrics Result")
     accumulative_incons = 0
     backends_pairs_num = 0
@@ -217,15 +223,18 @@ def generate_metrics_result(res_dict, predict_output, model_idntfr):
         backend1, backend2 = pair
         bk_name1, prediction1 = backend1
         bk_name2, prediction2 = backend2
-        bk_pair = "{}_{}".format(bk_name1, bk_name2)
+        bk_pair = "{}_{}".format(bk_name1, bk_name2)#例如mindspore1.7.1_mindspore1.8.1
         for metrics_name, metrics_result_dict in res_dict.items():
             metrics_func = utils.MetricsUtils.get_metrics_by_name(metrics_name)
             # metrics_results in list type
-            metrics_results = metrics_func(prediction1, prediction2, y_test[:flags.test_size])
-
+            # metrics_results = metrics_func(prediction1, prediction2, y_test[:flags.test_size])
+            metrics_results = metrics_func(prediction1, prediction2, dataset, dataset_name, test_size)
+            
+            mutate_logger.info(f"get metrics_results from backend pair: {bk_pair}")
             # ACC -> float: The sum of all inputs under all backends
+            # print(type(metrics_results)) <class 'list'>
+            # print(metrics_results)
             accumulative_incons += sum(metrics_results)
-
             for input_idx, delta in enumerate(metrics_results):
                 delta_key = "{}_{}_{}_input{}".format(model_idntfr, bk_name1, bk_name2, input_idx)
                 metrics_result_dict[delta_key] = delta
@@ -234,6 +243,11 @@ def generate_metrics_result(res_dict, predict_output, model_idntfr):
     return res_dict, accumulative_incons
 
 
+
+# origin_model_status, res_dict, accumulative_inconsistency, _ = get_model_prediction(res_dict,
+#                                                                                         origin_save_path,
+#                                                                                         origin_model_name, exp,
+#                                                                                         test_size, backends)
 def get_model_prediction(res_dict, model_path, model_name, exp, test_size, backends):
     """
     Get model prediction on different backends and calculate distance by metrics
@@ -256,18 +270,20 @@ def get_model_prediction(res_dict, model_path, model_name, exp, test_size, backe
         if pre_status_bk == 0:
             data = pickle.loads(redis_conn.hget("prediction_{}".format(model_name), bk))
             predict_output[bk] = data
+            # why this data variable can not be printed?
         # record the crashed backend
         else:
             all_backends_predict_status = False
             mutate_logger.error("{} crash on backend {} when predicting ".format(model_name, bk))
-
     status = False
     accumulative_incons = None
 
     # run ok on all platforms
     if all_backends_predict_status:
         predictions = list(predict_output.values())
-        res_dict, accumulative_incons = generate_metrics_result(res_dict=res_dict, predict_output=predict_output, model_idntfr=model_idntfr)
+        # 为什么这个prediction打印不出来呢？
+        # model_idntfr = resnet20_cifar100_orig
+        res_dict, accumulative_incons = generate_metrics_result(res_dict=res_dict, predict_output=predict_output, model_idntfr=model_idntfr, test_size=test_size)
 
         # If all backends are working fine, check if there exists NAN or INF in the result
         # `accumulative_incons` is nan or inf --> NaN or INF in results
@@ -302,7 +318,7 @@ if __name__ == "__main__":
 
     starttime = datetime.datetime.now()
     """
-    Parser of command args. 
+    Parser of command args.
     It could make mutate_lemon.py run independently without relying on mutation_executor.py
     """
     parse = argparse.ArgumentParser()
@@ -324,10 +340,10 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
     lemon_cfg = configparser.ConfigParser()
     lemon_cfg.read(f"./config/{flags.config_name}")
-    time_limit = lemon_cfg['parameters'].getint("time_limit")
-    mutator_strategy = lemon_cfg['parameters'].get("mutator_strategy").upper()
-    mutant_strategy = lemon_cfg['parameters'].get("mutant_strategy").upper()
-    stop_mode = lemon_cfg['parameters'].get("stop_mode").upper()
+    time_limit = lemon_cfg['parameters'].getint("time_limit") #默认是60min
+    mutator_strategy = lemon_cfg['parameters'].get("mutator_strategy").upper() # MCMC
+    mutant_strategy = lemon_cfg['parameters'].get("mutant_strategy").upper() # ROULETTE
+    stop_mode = lemon_cfg['parameters'].get("stop_mode").upper() #TIMING
     alpha = lemon_cfg['parameters'].getfloat("alpha")
 
     mutate_logger = Logger()
@@ -339,21 +355,20 @@ if __name__ == "__main__":
         if flags.exp in k.decode("utf-8"):
             redis_conn.delete(k)
 
-    # exp : like lenet5-mnist
-    experiment_dir = os.path.join(flags.output_dir, flags.exp)
-    mut_dir = os.path.join(experiment_dir, "mut_model")
-    crash_dir = os.path.join(experiment_dir, "crash")
-    nan_dir = os.path.join(experiment_dir, "nan")
-    inner_output_dir = os.path.join(experiment_dir, "inner_output")
-    metrics_result_dir = os.path.join(experiment_dir, "metrics_result")
-
-    x, y = utils.DataUtils.get_data_by_exp(flags.exp)
-    x_test, y_test = x[:flags.test_size], y[:flags.test_size]
+    # exp : like alexnet_cifar100
+    experiment_dir = os.path.join(flags.output_dir, flags.exp) #like /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100
+    mut_dir = os.path.join(experiment_dir, "mut_model")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/mut_model
+    crash_dir = os.path.join(experiment_dir, "crash")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/crash
+    nan_dir = os.path.join(experiment_dir, "nan")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/nan
+    inner_output_dir = os.path.join(experiment_dir, "inner_output")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/inner_output
+    metrics_result_dir = os.path.join(experiment_dir, "metrics_result")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/metrics_result
+    
+    dataset, dataset_name = utils.DataUtils.get_data_by_exp_with_bk(flags.exp, flags.test_size, backend_name = "mindspore1.8.1", cfg_name=flags.config_name)
     pool_size = lemon_cfg['parameters'].getint('pool_size')
     python_prefix = lemon_cfg['parameters']['python_prefix'].rstrip("/")
 
     try:
-        metrics_list = lemon_cfg['parameters']['metrics'].split(" ")
+        metrics_list = lemon_cfg['parameters']['metrics'].split(" ") #D_MAD
         lemon_results = {k: dict() for k in metrics_list}
         lemon_results = _generate_and_predict(lemon_results, flags.model, flags.mutate_num, flags.mutate_op,
                                               flags.test_size, flags.exp, flags.backends)
@@ -364,8 +379,8 @@ if __name__ == "__main__":
     except Exception as e:
         mutate_logger.exception(sys.exc_info())
 
-    from keras import backend as K
-    K.clear_session()
+    # from keras import backend as K
+    # K.clear_session()
 
     endtime = datetime.datetime.now()
     time_delta = endtime - starttime

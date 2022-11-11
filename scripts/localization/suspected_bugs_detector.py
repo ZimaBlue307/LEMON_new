@@ -276,7 +276,7 @@ if __name__ == '__main__':
     exps = parameters['exps'].lstrip().rstrip().split(" ")
     exps.sort(key=lambda x:x)
     #global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['tensorflow', 'theano', 'cntk','mxnet'], 2)]
-    global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['mindspore1.7.0', 'mindspore1.6.2'], 2)]
+    global_backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(['mindspore1.8.0', 'mindspore1.8.1'], 2)]
 
     pd_exps = list()
     success_cnt = fail_cnt = 0
@@ -314,7 +314,7 @@ if __name__ == '__main__':
         # else:
         #     backends = ['tensorflow', 'cntk', 'mxnet']
         if backend_choice == 1:
-            backends = ['mindspore1.7.0', 'mindspore1.6.2']
+            backends = ['mindspore1.8.0', 'mindspore1.8.1']
         backend_str = "-".join(backends)
 
         backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(backends, 2)]

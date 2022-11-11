@@ -169,7 +169,7 @@ if __name__ == '__main__':
         # else:
         #     pre_backends = ['tensorflow', 'mxnet', 'mindspore'] 
         if backend_choice == 1:
-            pre_backends = ['mindspore1.7.0', 'mindspore1.6.2']
+            pre_backends = ['mindspore1.7.1', 'mindspore1.8.1']
         print(current_container,backends)
         backends_str = "-".join(backends)
         backend_pairs = [f"{pair[0]}_{pair[1]}" for pair in combinations(backends, 2)]

@@ -1,6 +1,7 @@
 #assuming all the input_shapes are channel first;
-#layer.name在mindspore里好像用不了
-
+import copy
+import mindspore
+import mindspore.nn as nn
 import numpy as np
 import os
 import warnings
@@ -12,6 +13,55 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
+class No_Activation(nn.Cell):
+    def __init__(self):
+        super(No_Activation, self).__init__()
+    def construct(self, x):
+        result = x
+        return result
+
+class reshape_layer(nn.Cell): 
+    def __init__(self, out_shape):
+        super(reshape_layer, self).__init__()
+        self.out_shape = out_shape
+        self.reshape_layer = mindspore.ops.Reshape()
+    def construct(self, x):
+        result =  self.reshape_layer(x, self.out_shape)
+        return result
+
+class relu_layer(nn.Cell):
+    def __init__(self):
+        super(relu_layer, self).__init__()
+        self.relu = nn.ReLU()
+    def construct(self, x):
+        result = self.relu(x)
+        return result
+
+class tanh_layer(nn.Cell):
+    def __init__(self):
+        super(tanh_layer, self).__init__()
+        self.tanh = nn.Tanh()
+    def construct(self, x):
+        result = self.tanh(x)
+        return result
+
+class sigmoid_layer(nn.Cell):
+    def __init__(self):
+        super(sigmoid_layer, self).__init__()
+        self.sigmoid = nn.Sigmoid()
+    def construct(self, x):
+        result = self.sigmoid(x)
+        return result
+
+class leakyrelu_layer(nn.Cell):
+    def __init__(self):
+        super(leakyrelu_layer, self).__init__()
+        self.leakyrelu = nn.LeakyReLU(alpha = 0.01)
+    def construct(self, x):
+        result = self.leakyrelu(x)
+        return result
+
+
 class ActivationUtils:
     def __init__(self):
         self.available_activations = ActivationUtils.available_activations()
@@ -19,13 +69,16 @@ class ActivationUtils:
     @staticmethod
     def available_activations():
         activations = {}
-        import mindspore
-        import mindspore.nn as nn
-        activations['relu'] = nn.ReLU
-        activations['tanh'] = nn.Tanh
-        activations['sigmoid'] = nn.Sigmoid
-        activations['no_activation'] = ActivationUtils.no_activation
-        activations['leakyrelu'] = ActivationUtils.leakyrelu
+        no_act_class = No_Activation()
+        relu_class = relu_layer()
+        tanh_class = tanh_layer()
+        sigmoid_class = sigmoid_layer()
+        leakyrelu_class = leakyrelu_layer()
+        activations['relu'] = relu_class
+        activations['tanh'] = tanh_class
+        activations['sigmoid'] = sigmoid_class
+        activations['no_activation'] = no_act_class
+        activations['leakyrelu'] = leakyrelu_class
         return activations
 
     def get_activation(self, activation):
@@ -34,7 +87,7 @@ class ActivationUtils:
                             .format(activation, [key for key in self.available_activations.keys()]))
         return self.available_activations[activation]
 
-    def pick_activation_randomly(self, activations=None):
+    def pick_activation_randomly(self, activations=None): #返回的是一个激活函数cell
         if activations is None:
             availables = [item for item in self.available_activations.keys()]
             availables.remove('no_activation')
@@ -42,17 +95,6 @@ class ActivationUtils:
             availables = activations
         index = np.random.randint(0, len(availables))
         return self.available_activations[availables[index]]
-
-    @staticmethod
-    def no_activation(x):
-        return x
-
-    @staticmethod
-    def leakyrelu(x):
-        import mindspore.nn as nn
-        leaky_relu = nn.LeakyReLU(alpha = 0.01)
-        output = leaky_relu(x)
-        return output 
 
 class LayerUtils:
     def __init__(self):
@@ -116,19 +158,20 @@ class LayerUtils:
         #import keras
         import mindspore
         #这个white list需要再修改一下，学长可以帮忙搞定
-        white_list = [mindspore.nn.Dense, mindspore.nn.Conv1d, mindspore.nn.Conv2d, mindspore.nn.Conv3d,
+        white_list = [mindspore.nn.layer.Dense, mindspore.nn.layer.Conv1d, mindspore.nn.layer.Conv2d, mindspore.nn.layer.Conv3d,
                       #keras.layers.DepthwiseConv2D,
-                      mindspore.nn.Conv2dTranspose, mindspore.nn.Conv3dTranspose,
-                      mindspore.nn.MaxPool1d, mindspore.nn.MaxPool2d, mindspore.ops.MaxPool3D,
-                      mindspore.nn.AvgPool1d, mindspore.nn.AvgPool2d, mindspore.ops.AvgPool3D,
-                      mindspore.nn.LeakyReLU, mindspore.nn.ELU, #keras.layers.ThresholdedReLU,
-                      mindspore.ops.Softmax, mindspore.ops.ReLU
+                      mindspore.nn.layer.Conv2dTranspose, mindspore.nn.layer.Conv3dTranspose,
+                      mindspore.nn.layer.MaxPool1d, mindspore.nn.layer.MaxPool2d, mindspore.ops.MaxPool3D,
+                      mindspore.nn.layer.AvgPool1d, mindspore.nn.layer.AvgPool2d, mindspore.ops.AvgPool3D,
+                      mindspore.nn.layer.LeakyReLU, mindspore.nn.layer.ELU, #keras.layers.ThresholdedReLU,
+                      mindspore.ops.Softmax, mindspore.nn.layer.ReLU
                       ]
-        #in mindspore1.7.0, DepthwiseConv2dNative don't have any description files since it will be deprecated in the future, 
+        #in mindspore1.7.1, DepthwiseConv2dNative don't have any description files since it will be deprecated in the future, 
         #and the developer recommand us to use Conv2D instead.
         #keras.layers.AveragePooling3D——>mindspore.nn.AvgPool3D
         #keras.layers.AveragePooling2D——>mindspore.nn.AvgPool
         # print(white_list)
+        # print(type(layer))
         for l in white_list:
             if isinstance(layer, l):
                 return True
@@ -158,6 +201,10 @@ class LayerUtils:
     #     else:
     #         clone_layer = layer.__class__.from_config(layer_config)
     #     return clone_layer
+
+    @staticmethod
+    def clone(layer):
+        return copy.deepcopy(layer)
 
     @staticmethod
     def dense(input_shape):
@@ -213,13 +260,10 @@ class LayerUtils:
         import mindspore
         #layer = keras.layers.SeparableConv1D(input_shape[1], input_shape[1], kernel_size = 3, strides=1, padding='same')
         #SeparableConv = DepthwiseConv + PointwiseConv
-        layer_concat = []
         layer1 = mindspore.nn.Conv1d(input_shape[1], input_shape[1], kernel_size = 3, stride=1, group = input_shape[1], pad_mode = 'same')
         layer2 = mindspore.nn.Conv1d(input_shape[1], input_shape[1], kernel_size = 1, stride=1, pad_mode = 'same')
-        #layer.name += '_insert'
-        layer_concat.append(layer1)
-        layer_concat.append(layer2)
-        return layer_concat
+        layer.name += '_insert' #这个需要修改
+        return layer1, layer2
 
     @staticmethod
     def separable_conv_1d_input_legal(input_shape):
@@ -231,14 +275,11 @@ class LayerUtils:
         import mindspore
         #layer = keras.layers.SeparableConv2D(input_shape[-1], 3, strides=(1,1), padding='same')
         #https://gitee.com/mindspore/mindspore/issues/I5QG5I?from=project-issue
-        layer_concat = []
         layer1 = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size = 3, stride=(1,1), pad_mode='same',group = input_shape[1])
         layer2 = mindspore.nn.Conv2d(input_shape[1], input_shape[1], kernel_size = 1, stride=1)
-        layer_concat.append(layer1)
-        layer_concat.append(layer2)
-        #layer1.name += '_insert'
-        #layer2.name += '_insert'
-        return layer_concat
+        layer1.name += '_insert'
+        layer2.name += '_insert'
+        return layer1, layer2
 
     @staticmethod
     def separable_conv_2d_input_legal(input_shape):

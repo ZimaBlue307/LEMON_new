@@ -1,5 +1,5 @@
 #assuming all the input_shapes are channel first;
-
+#layer_matching in lemon_new
 import os
 import warnings
 warnings.filterwarnings("ignore")
@@ -91,7 +91,6 @@ class LayerMatching:
         constraints.append(constraint_str)
         return constraints
 
-    # --------------------------------------------
 
     #不知道怎么实现reshape层
     @staticmethod
@@ -128,16 +127,21 @@ class LayerMatching:
 
     @staticmethod
     def repeat_vector_dense(input_shape):
-        n = 3
+        n = 3 #这个n是什么作用？
         import mindspore
+        import keras
         layer_concat = []
-        #keras.layers.RepeatVector(n): repeat the input for n times
-        #may change into mindspore.numpy.repeat
-        #layer_concat.append(keras.layers.RepeatVector(n))
-        layer_concat.append(mindspore.Tensor.repeat(n, axis = 1)) #not for sure
-        layer_concat.append(mindspore.ops.Reshape(input_shape, (input_shape[1] * n,)))#why here is a ","? 
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))#not for sure
-        return layer_concat
+
+        # layer_concat.append(keras.layers.RepeatVector(n))
+        # layer_concat.append(keras.layers.Reshape((input_shape[1] * n,)))
+        # layer_concat.append(keras.layers.Dense(input_shape[1]))
+
+        #layer_concat.append(mindspore.Tensor.repeat(n, axis = 1))
+        #repeat必须要传入tensor才可以；
+        # https://www.mindspore.cn/docs/zh-CN/r1.7/note/api_mapping/pytorch_diff/npTile.html?highlight=repeat
+        # 缺少reshape层
+
+        layer_concat.append(mindspore.nn.Dense(input_shape[1], input_shape[1]))#因为inputshape的长度就是2
 
     @staticmethod
     def repeat_vector_dense_input_legal(input_shape):

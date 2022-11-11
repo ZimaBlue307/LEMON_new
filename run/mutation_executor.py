@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     flags = argparse.Namespace(
         mutate_ops=parameters['mutate_ops'],
-        exps=parameters['exps'].lstrip().rstrip().split(" "),
+        exps=parameters['exps'].lstrip().rstrip().split(" "), #such as alexnet_cifar10
         origin_model_dir=parameters['origin_model_dir'],
         output_dir=parameters['output_dir'],
         backend=parameters['backend'],
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     for exp_identifier in flags.exps:
 
         """Make directory"""
-        experiment_dir = os.path.join(flags.output_dir, exp_identifier)  # exp : like lenet5-mnist
+        experiment_dir = os.path.join(flags.output_dir, exp_identifier)  
         mut_dir = os.path.join(experiment_dir, "mut_model")
         crash_dir = os.path.join(experiment_dir, "crash")
         nan_dir = os.path.join(experiment_dir, "nan")
@@ -71,14 +71,20 @@ if __name__ == '__main__':
             """Mutate and get output of different backends"""
             main_log.info("INFO:Lemon mutation starting!")
             main_log.info("INFO:Lemon for exp: {}".format(exp_identifier))
-            origin_model_name = "{}_origin.h5".format(exp_identifier)
-            origin_model_file = os.path.join(flags.origin_model_dir,origin_model_name)
+            # origin_model_name = "{}_origin.h5".format(exp_identifier)
+            # origin_model_name = "{}_origin.py".format(exp_identifier)#alexnet_cifar10_origin.py
+            origin_model_name = exp_identifier # resnet20_cifar100 we now give the directory
+            origin_model_file = os.path.join(flags.origin_model_dir,origin_model_name)# origin_model_dir要从LEMON_new这一层开始写
             mutate_lemon = "{}/lemon/bin/python -u -m run.mutate_lemon --mutate_op {} --model {} --output_dir {}" \
                             " --backends {} --mutate_num {} --mutate_ratio {} --exp {} --test_size {} --redis_db {} --config_name {}"\
-                            .format(flags.python_prefix,flags.mutate_ops,origin_model_file,flags.output_dir,flags.backend,
+                            .format(flags.python_prefix,flags.mutate_ops,flags.origin_model_dir,flags.output_dir,flags.backend,
                                     flags.mutate_num,flags.mutate_ratio,exp_identifier,flags.test_size,flags.redis_db,config_name)
-            os.system(mutate_lemon)
-
+            # print(mutate_lemon)
+            os.system(mutate_lemon)            
+            # /home/lemon_proj/anaconda3/envs/lemon/bin/python -u -m run.mutate_lemon --mutate_op WS GF NEB NAI NS
+            # --model /data/origin_model/ms_model/alexnet_cifar10_origin.py --output_dir /home/lemon_proj/lyh/LEMON_new/lemon_outputs
+            # --backends mindspore1.8.1 mindspore1.7.1 mindspore1.6.2 --mutate_num 2 --mutate_ratio 0.3 --exp alexnet_cifar10 --test_size 10
+            # --redis_db 0 --config_name ms_experiments.conf
         except Exception:
             main_log.error("Error: Lemon for exp:{} Failed!".format(exp_identifier))
             main_log.exception(sys.exc_info())

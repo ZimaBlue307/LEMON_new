@@ -10,34 +10,68 @@ import configparser
 from scripts.tools.utils import DataUtils
 from scripts.logger.lemon_logger import Logger
 import warnings
+import mindspore
+from mindspore import nn
 
 main_logger = Logger()
 
 
 def custom_objects():
 
-    def no_activation(x):
-        return x
+    class No_Activation(nn.Cell):
+        def __init__(self):
+            super(No_Activation, self).__init__()
+        def construct(self, x):
+            result = x
+            return result
 
-    def leakyrelu(x):
-        import keras.backend as K
-        return K.relu(x, alpha=0.01)
+    class leakyrelu_layer(nn.Cell):
+        def __init__(self):
+            super(leakyrelu_layer, self).__init__()
+            self.leakyrelu = nn.LeakyReLU(alpha = 0.01)
+        def construct(self, x):
+            result = self.leakyrelu(x)
+            return result
 
     objects = {}
-    objects['no_activation'] = no_activation
-    objects['leakyrelu'] = leakyrelu
+    no_act_class = No_Activation()
+    leakyrelu_class = leakyrelu_layer()
+    objects['no_activation'] = no_act_class
+    objects['leakyrelu'] = leakyrelu_class
     return objects
 
-
-def _get_prediction(bk, x, y, model_path,batch_size):
+#for example, model_path == /home/lemon_proj/lyh/LEMON_new/lemon_outputs/resnet20_cifar100/mut_model/resnet20_cifar100_origin0
+def _get_prediction(bk, pred_dataset, model_path, batch_num):
     """
     Get prediction of models on different backends
     """
-    test_x, test_y = x[:flags.test_size],y[:flags.test_size]
-    predict_model = keras.models.load_model(model_path,custom_objects=custom_objects())
-    # predict_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    from scripts.mutation.hyr_import_ms_model import auto_generate_import_model_script
+    auto_generate_import_model_script(model_path)
+    import scripts.mutation.auto_import_model as auto_import_model
+    predict_model = auto_import_model.auto_import_msmodel()
+    ckpt_name = tuple(model_path.split("/"))[-1]
+    ckpt_path = model_path + "/" + ckpt_name + ".ckpt"
+    param_dict = mindspore.load_checkpoint(ckpt_path)
+    mindspore.load_param_into_net(predict_model, param_dict)
+    model_predict = mindspore.Model(network=predict_model)
     main_logger.info("INFO:load model and compile done!")
-    res = predict_model.predict(test_x,batch_size=batch_size)
+    
+    #model prediction
+    pred_dataset = pred_dataset.batch(batch_size=batch_num)
+    for i, d in enumerate(pred_dataset.create_dict_iterator()): 
+        test_data = d["image"]
+        if i == 0:
+            res = model_predict.predict(test_data)
+            continue
+        else:
+            res1 = model_predict.predict(test_data)
+            concat_op = mindspore.ops.Concat(0)
+            res = concat_op((res, res1))
+    # import numpy as np
+    # np.save(res)
+    # main_logger.info("SUCCESSFULLY save res")
+    # res = predict_model.predict(test_x,batch_size=batch_size)，
+    # test_x表示将要预测的数据集，batch_size表示一次性输入多少张图片给网络进行训练。会返回每个测试集预测各个类别的概率
     main_logger.info("SUCCESS:Get prediction for {} successfully on {}!".format(mut_model_name,bk))
     """Store prediction result to redis"""
     redis_conn.hset("prediction_{}".format(mut_model_name),bk,pickle.dumps(res))
@@ -73,55 +107,65 @@ if __name__ == "__main__":
 
     batch_size= 32
     """Switch backend"""
-    bk_list = ['tensorflow', 'theano', 'cntk','mxnet', 'mindspore'] #adding mindspore
+    bk_list = ['mindspore1.7.1', 'mindspore1.8.1'] #'tensorflow', 'theano', 'cntk','mxnet', 
     bk = flags.backend
     os.environ['KERAS_BACKEND'] = bk
     os.environ['PYTHONHASHSEED'] = '0'
-    if bk == 'tensorflow':
-        os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2'  # 只显示 warning 和 Error
-        import tensorflow as tf
-        main_logger.info(tf.__version__)
-        batch_size = 128
-        import keras
-    if bk == 'theano':
-        if len(gpu_list) == 2:
-            os.environ['THEANO_FLAGS'] = f"device=cuda,contexts=dev{gpu_list[0]}->cuda{gpu_list[0]};dev{gpu_list[1]}->cuda{gpu_list[1]}," \
-                                         f"force_device=True,floatX=float32,lib.cnmem=1"
-        else:
-            os.environ['THEANO_FLAGS'] = f"device=cuda,contexts=dev{gpu_list[0]}->cuda{gpu_list[0]}," \
-                                         f"force_device=True,floatX=float32,lib.cnmem=1"
-        import theano as th
-        import keras
-        main_logger.info(th.__version__)
-    if bk == "cntk":
-        from cntk.device import try_set_default_device,gpu
-        try_set_default_device(gpu(int(gpu_list[0])))
-        import cntk as ck
-        main_logger.info(ck.__version__)
-        import keras
-
-    if bk == "mxnet":
-        import mxnet as mxnet
-        main_logger.info(f"mxnet_version {mxnet.__version__}")
-        import keras
-
-        batch_size = 16
+    # if bk == 'tensorflow':
+    #     os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2'  # 只显示 warning 和 Error
+    #     import tensorflow as tf
+    #     main_logger.info(tf.__version__)
+    #     batch_size = 128
+    #     import keras
+    # if bk == 'theano':
+    #     if len(gpu_list) == 2:
+    #         os.environ['THEANO_FLAGS'] = f"device=cuda,contexts=dev{gpu_list[0]}->cuda{gpu_list[0]};dev{gpu_list[1]}->cuda{gpu_list[1]}," \
+    #                                      f"force_device=True,floatX=float32,lib.cnmem=1"
+    #     else:
+    #         os.environ['THEANO_FLAGS'] = f"device=cuda,contexts=dev{gpu_list[0]}->cuda{gpu_list[0]}," \
+    #                                      f"force_device=True,floatX=float32,lib.cnmem=1"
+    #     import theano as th
+    #     import keras
+    #     main_logger.info(th.__version__)
+    # if bk == "cntk":
+    #     from cntk.device import try_set_default_device,gpu
+    #     try_set_default_device(gpu(int(gpu_list[0])))
+    #     import cntk as ck
+    #     main_logger.info(ck.__version__)
+    #     import keras
+    # if bk == "mxnet":
+    #     import mxnet as mxnet
+    #     main_logger.info(f"mxnet_version {mxnet.__version__}")
+    #     import keras
+    #     batch_size = 16
     
-    #adding branch for mindspore
-    if bk == "mindspore":
+    #adding branches for mindspore
+    if bk == "mindspore1.6.2":
         import mindspore as mp
-        main_logger.info(mp.__version__) #get the version of mindspore, but not for sure
-        import keras
+        main_logger.info(f"mindspore_version {mp.__version__}") #get the version of mindspore
+        # import keras
     
-    from keras import backend as K
+    if bk == "mindspore1.7.1":
+        import mindspore as mp
+        main_logger.info(f"mindspore_version {mp.__version__}") #get the version of mindspore
 
+    if bk == "mindspore1.8.1":
+        import mindspore as mp
+        main_logger.info(f"mindspore_version {mp.__version__}")
+        
+    if bk == "mindspore1.8.0":
+        import mindspore as mp
+        main_logger.info(f"mindspore_version {mp.__version__}")
 
+    # from keras import backend as K
     try:
         """Get model prediction"""
-        main_logger.info("INFO:Using {} as backend for states extraction| {} is wanted".format(K.backend(),bk))
-        x, y = DataUtils.get_data_by_exp(flags.exp)
+        # main_logger.info("INFO:Using {} as backend for states extraction| {} is wanted".format(K.backend(),bk))
+        main_logger.info("Using {} as backend.".format(bk))
+        dataset, dataset_name= DataUtils.get_data_by_exp_with_bk(flags.exp, flags.test_size, bk, cfg_name=flags.config_name)
         mut_model_name = os.path.split(flags.model)[-1]
-        _get_prediction(bk=bk, x=x, y=y, model_path=flags.model,batch_size=batch_size)
+        _get_prediction(bk=bk, pred_dataset = dataset, model_path=flags.model, batch_num=batch_size)
+        sys.exit(0)
     except Exception:
         import traceback
         traceback.print_exc()

@@ -1,5 +1,6 @@
 """
 # Part  of localization phase
+# 迁移到mindspore,已修改
 """
 import os
 import sys

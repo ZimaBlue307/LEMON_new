@@ -6,6 +6,7 @@ import warnings
 import datetime
 import configparser
 import numpy as np
+from scripts.logger.lemon_logger import Logger
 
 np.random.seed(20200501)
 warnings.filterwarnings("ignore")
@@ -14,7 +15,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # 只显示 warning 和 Error
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-
+main_logger = Logger()
 
 class ModelUtils:
     def __init__(self):
@@ -35,15 +36,18 @@ class ModelUtils:
         load the ckpt to the network
         create a new model
         """
-        
         from scripts.mutation.mutation_utils import LayerUtils
         import copy
         import mindspore
         from mindspore import load_checkpoint, load_param_into_net
-        mindspore.save_checkpoint(model, "/tmp/model.ckpt")
+        if not os.path.exists('./tmp'):
+            os.makedirs('./tmp')
+        mindspore.save_checkpoint(model, "./tmp/model.ckpt")
         new_model = copy.deepcopy(model)
-        param_dict = load_checkpoint("resnet50-2_32.ckpt")
+        # param_dict = load_checkpoint("resnet50-2_32.ckpt")
+        param_dict = load_checkpoint("./tmp/model.ckpt")
         load_param_into_net(new_model, param_dict)
+        os.remove('./tmp/model.ckpt')
         return new_model
         # from scripts.mutation.mutation_utils import LayerUtils
         # import keras
@@ -248,15 +252,51 @@ class ModelUtils:
         objects['leakyrelu'] = ActivationUtils.leakyrelu
         return objects
 
+    @staticmethod
+    def get_layer(model, index):
+        '''
+        return layer with the index
+        :param model:
+        :param index:
+        :return:
+        '''
+        layers = model.cells_and_names()
+        layer = next(layers)
+        ly_num, ly_map = ToolUtils.get_layers(model)
+        map_index = ly_map[index]
+        for i in range(map_index):
+            layer = next(layers)
+        return layer[0], layer[1]
 
 
     @staticmethod
     def weighted_layer_indices(model):
+        '''
+        return layer indicies that have weights.
+        noted that returned indices should use with layer_map, or we can use without layer_map
+        :param model:
+        :return:
+        '''
         indices = []
-        for i, layer in enumerate(model.layers):
-            weight_count = layer.count_params()
-            if weight_count > 0:
+
+        layers = model.cells_and_names()
+        layer = next(layers)
+        ly_num, ly_map = ToolUtils.get_layers(model)
+        iter_index = 0
+        for i in range(ly_num):
+            ly_index = ly_map[i]
+            for j in range(ly_index - iter_index):
+                layer = next(layers)
+            iter_index = ly_index
+            parameters = list(layer[1].get_parameters())
+            weight_shape = len(parameters)
+            if weight_shape >= 1:
                 indices.append(i)
+
+        # for i, layer in enumerate(layers):
+        #     weight_count = layer.count_params()
+        #     if weight_count > 0:
+        #         indices.append(i)
         return indices
 
     @staticmethod
@@ -294,59 +334,102 @@ class DataUtils:
             x_return.append(np.array(img))
         return np.array(x_return)
 
-    @staticmethod
-    def get_data_by_exp(exp):
-        import keras
-        import keras.backend as K
-        K.set_image_data_format("channels_last")
+    # @staticmethod
+    # def get_data_by_exp(exp, test_size): #like exp = alexnet_cifar100
+    #     """
+    #     old: return x_test and y_test
+    #     new: return dataset after certain operations
+    #     """
+    #     import mindspore
+    #     # import keras
+    #     # import keras.backend as K
+    #     # K.set_image_data_format("channels_last")
+    #     # K.set_image_data_format("channels_first")
+    #     # in mindspore, data format is channel_first, so we may need to skip up three lines.
 
-        lemon_cfg = configparser.ConfigParser()
-        lemon_cfg.read("./config/experiments.conf")
-        dataset_dir = lemon_cfg['parameters']['dataset_dir']
-        x_test = y_test = []
-        if 'fashion-mnist' in exp:
-            _, (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
-            x_test = DataUtils.get_fashion_mnist_data(x_test)
-            y_test = keras.utils.to_categorical(y_test, num_classes=10)
-        elif 'mnist' in exp:
-            _, (x_test, y_test) = keras.datasets.mnist.load_data()
-            x_test = DataUtils.get_mnist_data(x_test)
-            y_test = keras.utils.to_categorical(y_test, num_classes=10)
-        elif 'cifar10' in exp:
-            _, (x_test, y_test) = keras.datasets.cifar10.load_data()
-            x_test = DataUtils.get_cifar10_data(x_test)
-            y_test = keras.utils.to_categorical(y_test, num_classes=10)
-        elif 'imagenet' in exp:
-            input_precessor = DataUtils.imagenet_preprocess_dict()
-            input_shapes_dict = DataUtils.imagenet_shape_dict()
-            model_name = exp.split("-")[0]
-            shape = input_shapes_dict[model_name]
-            data_path = os.path.join(dataset_dir,"sampled_imagenet-1500.npz")
-            data = np.load(data_path)
-            x, y = data['x_test'], data['y_test']
-            x_resize = DataUtils.image_resize(np.copy(x),shape)
-            x_test = input_precessor[model_name](x_resize)
-            y_test = keras.utils.to_categorical(y, num_classes=1000)
-        elif 'sinewave' in exp:
-            """
-            see more details in
-            https://github.com/StevenZxy/CIS400/tree/f69489c0624157ae86b5d8ddb1fa99c89a927256/code/LSTM-Neural-Network-for-Time-Series-Prediction-master
-            """
-            import pandas as pd
-            dataframe = pd.read_csv(f"{dataset_dir}/sinewave.csv")
-            test_size,seq_len = 1500, 50
-            data_test = dataframe.get("sinewave").values[-(test_size + 50):]
-            data_windows = []
-            for i in range(test_size):
-                data_windows.append(data_test[i:i + seq_len])
-            data_windows = np.array(data_windows).astype(float).reshape((test_size,seq_len,1))
-            data_windows = np.array(data_windows).astype(float)
-            x_test = data_windows[:, :-1]
-            y_test = data_windows[:, -1, [0]]
+    #     lemon_cfg = configparser.ConfigParser()
+    #     lemon_cfg.read("./config/ms_experiments.conf")
+    #     # dataset_dir = lemon_cfg['parameters']['dataset_dir']
+    #     # x_test = y_test = []
+    #     # adding new elif branch
+    #     if 'cifar100' in exp:
+    #         dataset_name = "cifar100"
+    #         cifar100_dir = "dataset/cifar100/cifar-100-binary"
+    #         dataset = mindspore.dataset.Cifar100Dataset(dataset_dir = cifar100_dir, usage='test', num_samples = test_size, shuffle=True) 
+    #         #In CIFAR100 dataset, each dictionary has 3 keys: "image", "fine_label"(100) and "coarse_label"(20)
+    #         # 可以用下述两行获得image和label;
+    #         # for data in one_hot_dataset.create_dict_iterator():
+    #         #     print(type(data["image"]))
+    #         # x_test = dataset.image
+    #         # y_test = dataset.label
+    #         # x_test = DataUtils.get_cifar100_data(x_test)
+    #         # def get_cifar100_data(x_test):
+    #         #     x_test = x_test.astype('float32') / 255.0
+    #         #     h, w = 32, 32
+    #         #     x_test = x_test.reshape(x_test.shape[0], 3, h, w)
+    #         # several lines next is used to implement fonction get_cifar100_data
+    #         import mindspore.dataset.transforms as C
+    #         import mindspore.dataset.vision as CV
+    #         from mindspore.dataset.vision import Inter
+    #         resize_height, resize_width = 32, 32
+    #         rescale_param = 1.0 / 255.0
+    #         shift_param = -1.0
+    #         one_hot_opt = C.OneHot(num_classes=100) 
+    #         rescale_op = CV.Rescale(rescale_param, shift_param)
+    #         resize_op = CV.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
+    #         dataset = dataset.map(operations = one_hot_opt, input_columns=["fine_label"]) #把细标签转换为独热编码
+    #         dataset = dataset.map(operations = rescale_op, input_columns=["image"])
+    #         dataset = dataset.map(operations = resize_op, input_columns=["image"])
 
-        elif 'price' in exp:
-            """see more details in https://github.com/omerbsezer/LSTM_RNN_Tutorials_with_Demo/tree/master/StockPricesPredictionProject"""
-            x_test, y_test = DataUtils.get_price_data(dataset_dir)
+    #         # get the shape of fine_label.
+    #         # this variable is used when generating metrics result
+    #         for i, data in enumerate(dataset.create_dict_iterator()):
+    #             label_shape = data['fine_label'].shape
+    #             break # since all shape are the same, so break after getting into the loop for the first time
+        
+        # elif 'fashion-mnist' in exp:
+        #     _, (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
+        #     x_test = DataUtils.get_fashion_mnist_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10)
+        # elif 'mnist' in exp:
+        #     _, (x_test, y_test) = keras.datasets.mnist.load_data()
+        #     x_test = DataUtils.get_mnist_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10)
+        # elif 'cifar10' in exp:
+        #     _, (x_test, y_test) = keras.datasets.cifar10.load_data()
+        #     x_test = DataUtils.get_cifar10_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10) #把类别标签转换为独热编码
+        # elif 'imagenet' in exp:
+        #     input_precessor = DataUtils.imagenet_preprocess_dict()
+        #     input_shapes_dict = DataUtils.imagenet_shape_dict()
+        #     model_name = exp.split("-")[0]
+        #     shape = input_shapes_dict[model_name]
+        #     data_path = os.path.join(dataset_dir,"sampled_imagenet-1500.npz")
+        #     data = np.load(data_path)
+        #     x, y = data['x_test'], data['y_test']
+        #     x_resize = DataUtils.image_resize(np.copy(x),shape)
+        #     x_test = input_precessor[model_name](x_resize)
+        #     y_test = keras.utils.to_categorical(y, num_classes=1000)
+        # elif 'sinewave' in exp:
+        #     """
+        #     see more details in
+        #     https://github.com/StevenZxy/CIS400/tree/f69489c0624157ae86b5d8ddb1fa99c89a927256/code/LSTM-Neural-Network-for-Time-Series-Prediction-master
+        #     """
+        #     import pandas as pd
+        #     dataframe = pd.read_csv(f"{dataset_dir}/sinewave.csv")
+        #     test_size,seq_len = 1500, 50
+        #     data_test = dataframe.get("sinewave").values[-(test_size + 50):]
+        #     data_windows = []
+        #     for i in range(test_size):
+        #         data_windows.append(data_test[i:i + seq_len])
+        #     data_windows = np.array(data_windows).astype(float).reshape((test_size,seq_len,1))
+        #     data_windows = np.array(data_windows).astype(float)
+        #     x_test = data_windows[:, :-1]
+        #     y_test = data_windows[:, -1, [0]]
+
+        # elif 'price' in exp:
+        #     """see more details in https://github.com/omerbsezer/LSTM_RNN_Tutorials_with_Demo/tree/master/StockPricesPredictionProject"""
+        #     x_test, y_test = DataUtils.get_price_data(dataset_dir)
 
         # TODO: Add your own data preprocessing here
         # Note: The returned inputs should be preprocessed and labels should decoded as one-hot vector which could be directly feed in model.
@@ -354,7 +437,111 @@ class DataUtils:
         # elif 'xxx' in exp:
         #     x_test, y_test = get_your_data(dataset_dir)
 
-        return x_test, y_test
+        # return dataset, dataset_name
+
+
+    @staticmethod
+    #一些operators在三个测试的mindspore版本中，api不一样。故本函数的参数多传入一个backend信息以作判断
+    def get_data_by_exp_with_bk(exp, test_size, backend_name, cfg_name): #like exp = alexnet_cifar100
+        """
+        old: return x_test and y_test
+        new: return dataset after certain operations
+        """
+        import mindspore
+        # import keras
+        # import keras.backend as K
+        # K.set_image_data_format("channels_last")
+        # K.set_image_data_format("channels_first")
+        # in mindspore, data format is channel_first, so we may need to skip up three lines.
+
+        lemon_cfg = configparser.ConfigParser()
+        # lemon_cfg.read("./config/experiments.conf")
+        # lemon_cfg.read(cfg_name)
+        # dataset_dir = lemon_cfg['parameters']['dataset_dir']
+        x_test = y_test = []
+        # adding new elif branch
+        if 'cifar100' in exp:
+            dataset_name = "cifar100"
+            cifar100_dir = "dataset/cifar100/cifar-100-binary"
+            dataset = mindspore.dataset.Cifar100Dataset(dataset_dir = cifar100_dir, usage='test', num_samples = test_size, shuffle=False) # batch_size=32, download=True,
+            import mindspore.dataset.transforms as transforms
+            import mindspore.dataset.vision as CV
+            from mindspore.dataset.vision import Inter
+            resize_height, resize_width = 32, 32
+            rescale_param = 1.0 / 255.0
+            shift_param = 0.0 #不平移
+            if backend_name == "mindspore1.7.1":
+                one_hot_opt = transforms.py_transforms.OneHotOp(num_classes=100)
+                rescale_op = CV.c_transforms.Rescale(rescale_param, shift_param)
+                resize_op = CV.py_transforms.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
+                ndarray2PIL = CV.py_transforms.ToPIL()
+                totensor_op = CV.py_transforms.ToTensor()
+                from mindspore.dataset.transforms.py_transforms import Compose
+                image_op_list = Compose([ndarray2PIL, resize_op, totensor_op])
+                dataset = dataset.map(operations = one_hot_opt, input_columns=["fine_label"]) #把细标签转换为独热编码   
+                dataset = dataset.map(operations = rescale_op, input_columns=["image"])
+                
+            else:
+                one_hot_opt = transforms.OneHot(num_classes=100) 
+                rescale_op = CV.Rescale(rescale_param, shift_param)
+                resize_op = CV.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
+            #In CIFAR100 dataset, each dictionary has 3 keys: "image", "fine_label"(100) and "coarse_label"(20)
+                dataset = dataset.map(operations = one_hot_opt, input_columns=["fine_label"]) #把细标签转换为独热编码   
+                dataset = dataset.map(operations = rescale_op, input_columns=["image"])
+                dataset = dataset.map(operations = resize_op, input_columns=["image"])
+            for i, data in enumerate(dataset.create_dict_iterator()):
+                label_shape = data['fine_label'].shape
+                break
+        # elif 'fashion-mnist' in exp:
+        #     _, (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
+        #     x_test = DataUtils.get_fashion_mnist_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10)
+        # elif 'mnist' in exp:
+        #     _, (x_test, y_test) = keras.datasets.mnist.load_data()
+        #     x_test = DataUtils.get_mnist_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10)
+        # elif 'cifar10' in exp:
+        #     _, (x_test, y_test) = keras.datasets.cifar10.load_data()
+        #     x_test = DataUtils.get_cifar10_data(x_test)
+        #     y_test = keras.utils.to_categorical(y_test, num_classes=10) #把类别标签转换为独热编码
+        # elif 'imagenet' in exp:
+        #     input_precessor = DataUtils.imagenet_preprocess_dict()
+        #     input_shapes_dict = DataUtils.imagenet_shape_dict()
+        #     model_name = exp.split("-")[0]
+        #     shape = input_shapes_dict[model_name]
+        #     data_path = os.path.join(dataset_dir,"sampled_imagenet-1500.npz")
+        #     data = np.load(data_path)
+        #     x, y = data['x_test'], data['y_test']
+        #     x_resize = DataUtils.image_resize(np.copy(x),shape)
+        #     x_test = input_precessor[model_name](x_resize)
+        #     y_test = keras.utils.to_categorical(y, num_classes=1000)
+        # elif 'sinewave' in exp:
+        #     """
+        #     see more details in
+        #     https://github.com/StevenZxy/CIS400/tree/f69489c0624157ae86b5d8ddb1fa99c89a927256/code/LSTM-Neural-Network-for-Time-Series-Prediction-master
+        #     """
+        #     import pandas as pd
+        #     dataframe = pd.read_csv(f"{dataset_dir}/sinewave.csv")
+        #     test_size,seq_len = 1500, 50
+        #     data_test = dataframe.get("sinewave").values[-(test_size + 50):]
+        #     data_windows = []
+        #     for i in range(test_size):
+        #         data_windows.append(data_test[i:i + seq_len])
+        #     data_windows = np.array(data_windows).astype(float).reshape((test_size,seq_len,1))
+        #     data_windows = np.array(data_windows).astype(float)
+        #     x_test = data_windows[:, :-1]
+        #     y_test = data_windows[:, -1, [0]]
+        # elif 'price' in exp:
+            # """see more details in https://github.com/omerbsezer/LSTM_RNN_Tutorials_with_Demo/tree/master/StockPricesPredictionProject"""
+            # x_test, y_test = DataUtils.get_price_data(dataset_dir)
+
+        # TODO: Add your own data preprocessing here
+        # Note: The returned inputs should be preprocessed and labels should decoded as one-hot vector which could be directly feed in model.
+        # Both of them should be returned in batch, e.g. shape like (1500,28,28,1) and (1500,10)
+        # elif 'xxx' in exp:
+        #     x_test, y_test = get_your_data(dataset_dir)
+
+        return dataset, dataset_name
 
     @staticmethod
     def save_img_from_array(path,array,index,exp):
@@ -388,11 +575,19 @@ class DataUtils:
         return x_test
 
     @staticmethod
+    #in ms: NCDHW
     def get_cifar10_data(x_test):
         x_test = x_test.astype('float32') / 255.0
         w, h = 32, 32
         x_test = x_test.reshape(x_test.shape[0], w, h, 3)
         return x_test
+    
+    @staticmethod
+    # in ms: NCHW, NCDHW
+    def get_cifar100_data(x_test):
+        x_test = x_test.astype('float32') / 255.0
+        h, w = 32, 32
+        x_test = x_test.reshape(x_test.shape[0], 3, h, w)
 
     @staticmethod
     def get_price_data(data_dir):
@@ -475,27 +670,130 @@ class ToolUtils:
         secs = seconds % 60
         return hours, minutes, secs
 
+    
+    @staticmethod
+    # symbolTree是模型的symboltree;
+    # node是symbolTree中的节点
+    # result表示此传入的symbolTree中一共有多少个节点，传入默认是0
+    # mapping_index_node是字典，#key是数字索引，value是node，传入默认空字典
+    # mapping_node_parent是字典，key是数字索引，value是数字索引对应node的parent_tree，传入时默认空字典
+    def judge_node(symbolTree, node, result, mapping_index_node, mapping_node_parent):
+        import mindspore
+        sub_tree = mindspore.rewrite.TreeNodeHelper.get_sub_tree(node)
+        if sub_tree is None:
+            result += 1
+            parent_tree = symbolTree
+            mapping_index_node[result - 1] = node
+            mapping_node_parent[result - 1] = parent_tree
+            return result
+        else:
+            parent_tree = sub_tree
+            for sub_node in parent_tree.nodes():
+                result = ToolUtils.judge_node(sub_tree, sub_node, result, mapping_index_node, mapping_node_parent)
+            return result
+
+
+    @staticmethod
+    def judge_module(cell):
+        cell_num = len(list(cell.cells_and_names()))
+        if cell_num > 1:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def get_layers(cell):
+        result = 0
+        mapping = dict()
+        model_num = 0
+        layers = cell.cells_and_names()
+
+        # print(len(list(layers)))
+        result = len(list(layers))
+        layers = cell.cells_and_names()
+        for i, layer in enumerate(layers):
+            if ToolUtils.judge_module(layer[1]):
+                result -= 1
+            else:
+                mapping[model_num] = i
+                model_num += 1
+        assert result == model_num
+        return result, mapping
+
+
 
 class MetricsUtils:
+    
+    @staticmethod
+    def concat_dataset(dataset, dataset_name, test_size):
+        import mindspore
+        if dataset_name == "cifar100":
+            for i, data in enumerate(dataset.create_dict_iterator()):
+                label_tensor = data['fine_label']
+                label_tensor = mindspore.numpy.expand_dims(label_tensor, 0)
+                break
+            for i, data in enumerate(dataset.create_dict_iterator()):
+                if i == 0: 
+                    continue
+                data = data['fine_label']
+                data = mindspore.numpy.expand_dims(data, 0)
+                # print(np.shape(data))
+                label_tensor = mindspore.ops.concat((label_tensor, data))
+                if i == test_size-1:
+                    break
+            return label_tensor
 
     @staticmethod
-    def delta(y1_pred, y2_pred,y_true=None):
+    # def delta(y1_pred, y2_pred,y_true=None):
+    #     y1_pred = np.reshape(y1_pred, [np.shape(y1_pred)[0], -1])
+    #     y2_pred = np.reshape(y2_pred, [np.shape(y2_pred)[0], -1])
+    #     return np.mean(np.abs(y1_pred - y2_pred), axis=1), np.sum(np.abs(y1_pred - y2_pred), axis=1)
+    def delta(y1_pred, label_tensor, y_true=None):
+        import mindspore
+        # label_tensor = MetricsUtils.concat_dataset(dataset, dataset_name, test_size)
         y1_pred = np.reshape(y1_pred, [np.shape(y1_pred)[0], -1])
-        y2_pred = np.reshape(y2_pred, [np.shape(y2_pred)[0], -1])
-        return np.mean(np.abs(y1_pred - y2_pred), axis=1), np.sum(np.abs(y1_pred - y2_pred), axis=1)
+        #np.reshape will change the datatype to object.
+        label_tensor = mindspore.Tensor(label_tensor, dtype=mindspore.float32)
+        # label_tensor = np.reshape(label_tensor, [np.shape(label_tensor)[0], -1])
+        # now the datatypes of y1_pred and label_tensor are all object
+        # print(np.shape(y1_pred))
+        # print(np.shape(label_tensor))
+        mean_ans = np.mean(np.abs(y1_pred - label_tensor), axis = 1)
+        sum_ans = np.sum(np.abs(y1_pred - label_tensor), axis=1)
+        return mean_ans, sum_ans
 
+    # @staticmethod
+    # # metrics_func(prediction1, prediction2, y_test[:flags.test_size])
+    # def D_MAD_metrics(y1_pred, y2_pred,y_true, epsilon=1e-7):
+    #     # sum could be remove and use mean in branch.
+    #     theta_y1,sum_y1 = MetricsUtils.delta(y1_pred, y_true)
+    #     theta_y2,sum_y2 = MetricsUtils.delta(y2_pred, y_true)
+    #     return [
+    #         0
+    #         if (sum_y1[i] == 0 and sum_y2[i] == 0)
+    #         else
+    #         np.abs(theta_y1[i] - theta_y2[i]) / (theta_y1[i] + theta_y2[i])
+    #         for i in range(len(y_true))
+    #     ]
     @staticmethod
-    def D_MAD_metrics(y1_pred, y2_pred,y_true, epsilon=1e-7):
+    # prediction1, prediction2, dataset, dataset_name, test_size
+    def D_MAD_metrics(y1_pred, y2_pred,dataset, dataset_name, test_size, epsilon=1e-7):
         # sum could be remove and use mean in branch.
-        theta_y1,sum_y1 = MetricsUtils.delta(y1_pred, y_true)
-        theta_y2,sum_y2 = MetricsUtils.delta(y2_pred, y_true)
+        label_tensor = MetricsUtils.concat_dataset(dataset, dataset_name, test_size)
+        theta_y1,sum_y1 = MetricsUtils.delta(y1_pred, label_tensor)
+        theta_y2,sum_y2 = MetricsUtils.delta(y2_pred, label_tensor)
+        # if all(sum_y1 == 0) and all(sum_y2 == 0):
+        #     return 0
+        # else:
+        #     return np.abs(theta_y1 - theta_y2) / (theta_y1 + theta_y2)
         return [
             0
             if (sum_y1[i] == 0 and sum_y2[i] == 0)
             else
             np.abs(theta_y1[i] - theta_y2[i]) / (theta_y1[i] + theta_y2[i])
-            for i in range(len(y_true))
+            for i in range(len(label_tensor))
         ]
+            
 
     @staticmethod
     def get_all_metrics():
@@ -521,7 +819,6 @@ class MetricsUtils:
 
 if __name__ == '__main__':
     pass
-
 
 
 

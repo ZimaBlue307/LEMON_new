@@ -64,7 +64,7 @@ if __name__ == "__main__":
     """Switch backend"""
     #bk_list = ['tensorflow', 'theano', 'cntk', 'mxnet', 'mindspore'] 
     # #changing into two versions of mindspore
-    bk_list = ['mindspore1.7.0', 'mindspore1.6.2']
+    bk_list = ['mindspore1.8.1', 'mindspore1.8.0']
     bk = flags.backend
     os.environ['KERAS_BACKEND'] = bk
     os.environ['PYTHONHASHSEED'] = '0'
@@ -97,17 +97,21 @@ if __name__ == "__main__":
         batch_size = 32
         import mxnet as mxnet
         mylogger.info(mxnet.__version__)
-    
-    #adding branch bk == mindspore1.7.0 and mindspore1.6.2
-    if bk == "mindspore1.7.0":
-        batch_size = 32
-        import mindspore as mp
-        mylogger.info(mp.__version__)#checking the version of mindspore1.7.0;
-    
+        
     if bk == "mindspore1.6.2":
         batch_size = 32
         import mindspore as mp
         mylogger.info(mp.__version__)#checking the version of mindspore1.6.2;
+    
+    if bk == "mindspore1.7.1":
+        batch_size = 32
+        import mindspore as mp
+        mylogger.info(mp.__version__)#checking the version of mindspore1.7.1;
+    
+    if bk == "mindspore1.8.1":
+        batch_size = 32
+        import mindspore as mp
+        mylogger.info(mp.__version__)
         
 
     from keras import backend as K
