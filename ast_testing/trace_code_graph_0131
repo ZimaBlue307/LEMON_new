@@ -1,0 +1,41 @@
+#IR entry      : @kernel_graph_0
+#attrs         :
+#Total params  : 2
+
+%para1_x : <Tensor[Float32], ()>  :  <Float32xDefaultFormat[const vector][]>  :  IsWeight:false
+%para2_y : <Tensor[Float32], ()>  :  <Float32xDefaultFormat[const vector][]>  :  IsWeight:false
+
+#Total subgraph : 1
+
+subgraph attr:
+subgraph instance: kernel_graph_0 : 0x56127d1e6b10
+subgraph @kernel_graph_0() {
+  %0(a) = Sub(%para1_x, Tensor(shape=[], dtype=Float32, value=1)) {instance name: sub} primitive_attrs: {output_names: [output], IsFeatureMapOutput: true, IsFeatureMapInputList: (0), input_names: [x, y]}
+      : (<Tensor[Float32], ()>, <Tensor[Float32], (), value=...>) -> (<Tensor[Float32], ()>)
+      : (<Float32xDefaultFormat[const vector][]>, <Float32xDefaultFormat[const vector][]>) -> (<Float32xDefaultFormat[const vector][]>)
+      # fullname_with_scope: (Default/Sub-op5)
+      # In file test1.py(22)/        a = self.sub(x, 1)/
+  %1(b) = Add(%0, %para2_y) {instance name: add} primitive_attrs: {output_names: [output], IsFeatureMapOutput: true, IsFeatureMapInputList: (0, 1), input_names: [x, y]}
+      : (<Tensor[Float32], ()>, <Tensor[Float32], ()>) -> (<Tensor[Float32], ()>)
+      : (<Float32xDefaultFormat[const vector][]>, <Float32xDefaultFormat[const vector][]>) -> (<Float32xDefaultFormat[const vector][]>)
+      # fullname_with_scope: (Default/Add-op6)
+      # In file test1.py(23)/        b = self.add(a, y)/
+  %2([CNode]19) = Div(%0, %1) {instance name: div} primitive_attrs: {output_names: [output], IsFeatureMapOutput: true, IsFeatureMapInputList: (0, 1), input_names: [x, y]}
+      : (<Tensor[Float32], ()>, <Tensor[Float32], ()>) -> (<Tensor[Float32], ()>)
+      : (<Float32xDefaultFormat[const vector][]>, <Float32xDefaultFormat[const vector][]>) -> (<Float32xDefaultFormat[const vector][]>)
+      # fullname_with_scope: (Default/Div-op7)
+      # In file test1.py(19)/        return self.div(x, y)/
+      # In file test1.py(24)/        c = self.mul(b, self.func(a, b))/
+  %3(c) = Mul(%1, %2) {instance name: mul} primitive_attrs: {output_names: [output], IsFeatureMapOutput: true, IsFeatureMapInputList: (0, 1), input_names: [x, y]}
+      : (<Tensor[Float32], ()>, <Tensor[Float32], ()>) -> (<Tensor[Float32], ()>)
+      : (<Float32xDefaultFormat[const vector][]>, <Float32xDefaultFormat[const vector][]>) -> (<Float32xDefaultFormat[const vector][]>)
+      # fullname_with_scope: (Default/Mul-op8)
+      # In file test1.py(24)/        c = self.mul(b, self.func(a, b))/
+  %4([CNode]26) = MakeTuple(%3)
+      : (<Tensor[Float32], ()>) -> (<Tuple[Tensor[Float32]]>)
+      # fullname_with_scope: (Default/MakeTuple-op9)
+  Return(%4)
+      : (<Tuple[Tensor[Float32]]>)
+      # fullname_with_scope: (Default/Return-op10)
+}
+
