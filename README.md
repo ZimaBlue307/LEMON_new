@@ -1,2 +1,2 @@
 # LEMON_new
-apply LEMON to MindSpore
+Apply LEMON to MindSpore. Check the master branch for details
