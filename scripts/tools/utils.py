@@ -7,6 +7,15 @@ import datetime
 import configparser
 import numpy as np
 from scripts.logger.lemon_logger import Logger
+import inspect
+import ast
+import astunparse
+import copy
+import sys
+# import astor
+import json
+import collections
+# from mindspore.rewrite import *
 
 np.random.seed(20200501)
 warnings.filterwarnings("ignore")
@@ -439,6 +448,12 @@ class DataUtils:
 
         # return dataset, dataset_name
 
+    @staticmethod
+    def unpickle(file):
+        import pickle
+        with open(file, 'rb') as fo:
+            dict = pickle.load(fo, encoding='latin1')
+        return dict
 
     @staticmethod
     #一些operators在三个测试的mindspore版本中，api不一样。故本函数的参数多传入一个backend信息以作判断
@@ -448,21 +463,24 @@ class DataUtils:
         new: return dataset after certain operations
         """
         import mindspore
+        # from keras.utils import to_categorical
         # import keras
         # import keras.backend as K
         # K.set_image_data_format("channels_last")
         # K.set_image_data_format("channels_first")
         # in mindspore, data format is channel_first, so we may need to skip up three lines.
-
         lemon_cfg = configparser.ConfigParser()
         # lemon_cfg.read("./config/experiments.conf")
-        # lemon_cfg.read(cfg_name)
-        # dataset_dir = lemon_cfg['parameters']['dataset_dir']
+        main_logger.info(f"cfg path {cfg_name}")
+        cfg_name = os.path.join('config/', cfg_name)
+        lemon_cfg.read(cfg_name)
+        dataset_dir = lemon_cfg['parameters']['dataset_dir']
         x_test = y_test = []
         # adding new elif branch
         if 'cifar100' in exp:
+            # In CIFAR100 dataset, each dictionary has 3 keys: "image", "fine_label"(100) and "coarse_label"(20)
             dataset_name = "cifar100"
-            cifar100_dir = "dataset/cifar100/cifar-100-binary"
+            cifar100_dir = os.path.join(dataset_dir, "cifar100/cifar-100-binary")
             dataset = mindspore.dataset.Cifar100Dataset(dataset_dir = cifar100_dir, usage='test', num_samples = test_size, shuffle=False) # batch_size=32, download=True,
             import mindspore.dataset.transforms as transforms
             import mindspore.dataset.vision as CV
@@ -481,17 +499,60 @@ class DataUtils:
                 dataset = dataset.map(operations = one_hot_opt, input_columns=["fine_label"]) #把细标签转换为独热编码   
                 dataset = dataset.map(operations = rescale_op, input_columns=["image"])
                 
-            else:
+            elif backend_name == 'mindspore1.8.1':
                 one_hot_opt = transforms.OneHot(num_classes=100) 
                 rescale_op = CV.Rescale(rescale_param, shift_param)
                 resize_op = CV.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
-            #In CIFAR100 dataset, each dictionary has 3 keys: "image", "fine_label"(100) and "coarse_label"(20)
                 dataset = dataset.map(operations = one_hot_opt, input_columns=["fine_label"]) #把细标签转换为独热编码   
                 dataset = dataset.map(operations = rescale_op, input_columns=["image"])
                 dataset = dataset.map(operations = resize_op, input_columns=["image"])
-            for i, data in enumerate(dataset.create_dict_iterator()):
-                label_shape = data['fine_label'].shape
-                break
+            elif backend_name == 'mindspore1.6.2':
+                one_hot_opt = transforms.py_transforms.OneHotOp(num_classes=100)
+                dataset = dataset.map(operations=one_hot_opt, input_columns=["fine_label"])
+                rescale_op = CV.c_transforms.Rescale(rescale_param, shift_param)
+                dataset = dataset.map(operations=rescale_op, input_columns=["image"])
+                
+        elif 'cifar10' in exp:
+            dataset_name = 'cifar10'
+            cifar10_path = 'dataset/cifar10'
+            cifar10_python_path = os.path.join(dataset_dir, 'cifar-10-batch-py', 'test_batch')
+            # 使用python方法獲得y_true
+            # cifar_python = DataUtils.unpickle(cifar10_python_path)
+            # y_true = np.array(cifar_python['labels'][:test_size])
+            # y_true = to_categorical(y_true, num_classes=10)
+            # 使用ms方法獲得dataset
+            dataset = mindspore.dataset.Cifar10Dataset(dataset_dir=cifar10_path, usage='test', num_samples=test_size,
+                                                        shuffle=False)
+            import mindspore.dataset.transforms as transforms
+            import mindspore.dataset.vision as CV
+            from mindspore.dataset.vision import Inter
+            resize_height, resize_width = 32, 32
+            rescale_param = 1.0 / 255.0
+            shift_param = 0.0  # 不平移
+            if backend_name == 'mindspore1.7.1':
+                one_hot_opt = transforms.py_transforms.OneHotOp(num_classes=10)
+                rescale_op = CV.c_transforms.Rescale(rescale_param, shift_param)
+                # resize_op = CV.py_transforms.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
+                # ndarray2PIL = CV.py_transforms.ToPIL()
+                # totensor_op = CV.py_transforms.ToTensor()
+                from mindspore.dataset.transforms.py_transforms import Compose
+                # image_op_list = Compose([ndarray2PIL, resize_op, totensor_op])
+                dataset = dataset.map(operations=one_hot_opt, input_columns=["label"])  # 把细标签转换为独热编码
+                dataset = dataset.map(operations=rescale_op, input_columns=["image"])
+            elif backend_name == 'mindspore1.8.1':
+                one_hot_opt = transforms.OneHot(num_classes=10)
+                rescale_op = CV.Rescale(rescale_param, shift_param)
+                resize_op = CV.Resize((resize_height, resize_width), interpolation=Inter.LINEAR)
+                # In CIFAR100 dataset, each dictionary has 3 keys: "image", "fine_label"(100) and "coarse_label"(20)
+                dataset = dataset.map(operations=one_hot_opt, input_columns=["label"])  # 把细标签转换为独热编码
+                dataset = dataset.map(operations=rescale_op, input_columns=["image"])
+                dataset = dataset.map(operations=resize_op, input_columns=["image"])
+            elif backend_name == 'mindspore1.6.2':
+                one_hot_opt = transforms.py_transforms.OneHotOp(num_classes=10)
+                dataset = dataset.map(operations=one_hot_opt, input_columns=["label"])
+                rescale_op = CV.c_transforms.Rescale(rescale_param, shift_param)
+                dataset = dataset.map(operations=rescale_op, input_columns=["image"])
+                
         # elif 'fashion-mnist' in exp:
         #     _, (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
         #     x_test = DataUtils.get_fashion_mnist_data(x_test)
@@ -677,20 +738,19 @@ class ToolUtils:
     # result表示此传入的symbolTree中一共有多少个节点，传入默认是0
     # mapping_index_node是字典，#key是数字索引，value是node，传入默认空字典
     # mapping_node_parent是字典，key是数字索引，value是数字索引对应node的parent_tree，传入时默认空字典
-    def judge_node(symbolTree, node, result, mapping_index_node, mapping_node_parent):
+    def judge_node(symbolTree, result, mapping_index_node, mapping_node_parent):
         import mindspore
-        sub_tree = mindspore.rewrite.TreeNodeHelper.get_sub_tree(node)
-        if sub_tree is None:
-            result += 1
-            parent_tree = symbolTree
-            mapping_index_node[result - 1] = node
-            mapping_node_parent[result - 1] = parent_tree
-            return result
-        else:
-            parent_tree = sub_tree
-            for sub_node in parent_tree.nodes():
-                result = ToolUtils.judge_node(sub_tree, sub_node, result, mapping_index_node, mapping_node_parent)
-            return result
+        for node in symbolTree.nodes():
+            sub_tree = mindspore.rewrite.TreeNodeHelper.get_sub_tree(node)
+            if sub_tree is None:
+                result += 1
+                parent_tree = symbolTree
+                mapping_index_node[result - 1] = node
+                mapping_node_parent[result - 1] = parent_tree
+            else:
+                parent_tree = sub_tree
+                ToolUtils.judge_node(parent_tree, result, mapping_index_node, mapping_node_parent)
+        return result, mapping_index_node, mapping_node_parent
 
 
     @staticmethod
@@ -720,27 +780,47 @@ class ToolUtils:
         assert result == model_num
         return result, mapping
 
-
-
 class MetricsUtils:
     
     @staticmethod
     def concat_dataset(dataset, dataset_name, test_size):
         import mindspore
+        label_tensor = None
+        label_list = []
         if dataset_name == "cifar100":
+            main_logger.info("Concat the label_Tensor of dataset cifar100!")
             for i, data in enumerate(dataset.create_dict_iterator()):
                 label_tensor = data['fine_label']
                 label_tensor = mindspore.numpy.expand_dims(label_tensor, 0)
+                label_list.append(label_tensor)
                 break
             for i, data in enumerate(dataset.create_dict_iterator()):
                 if i == 0: 
                     continue
                 data = data['fine_label']
                 data = mindspore.numpy.expand_dims(data, 0)
+                label_list.append(label_tensor)
+                # print(np.shape(data))
+                if i == test_size-1:
+                    break
+            label_tensor = mindspore.ops.concat(label_list)
+            return label_tensor
+        elif dataset_name == 'cifar10':
+            main_logger.info("Concat the label_Tensor of dataset cifar10!")
+            for i, data in enumerate(dataset.create_dict_iterator()):
+                label_tensor = data['label']
+                label_tensor = mindspore.numpy.expand_dims(label_tensor, 0)
+                break
+            for i, data in enumerate(dataset.create_dict_iterator()):
+                if i == 0:
+                    continue
+                data = data['label']
+                data = mindspore.numpy.expand_dims(data, 0)
                 # print(np.shape(data))
                 label_tensor = mindspore.ops.concat((label_tensor, data))
                 if i == test_size-1:
                     break
+            #print(label_tensor.shape)
             return label_tensor
 
     @staticmethod
@@ -753,13 +833,16 @@ class MetricsUtils:
         # label_tensor = MetricsUtils.concat_dataset(dataset, dataset_name, test_size)
         y1_pred = np.reshape(y1_pred, [np.shape(y1_pred)[0], -1])
         #np.reshape will change the datatype to object.
-        label_tensor = mindspore.Tensor(label_tensor, dtype=mindspore.float32)
+        # label_tensor = mindspore.Tensor(label_tensor, dtype=mindspore.float32)
+        label_tensor = label_tensor.asnumpy()
         # label_tensor = np.reshape(label_tensor, [np.shape(label_tensor)[0], -1])
         # now the datatypes of y1_pred and label_tensor are all object
         # print(np.shape(y1_pred))
         # print(np.shape(label_tensor))
         mean_ans = np.mean(np.abs(y1_pred - label_tensor), axis = 1)
         sum_ans = np.sum(np.abs(y1_pred - label_tensor), axis=1)
+        # main_logger.info("the value of mean_ans: {}".format(mean_ans))
+        # main_logger.info("the value of sum_ans: {}".format(sum_ans))
         return mean_ans, sum_ans
 
     # @staticmethod
@@ -786,13 +869,15 @@ class MetricsUtils:
         #     return 0
         # else:
         #     return np.abs(theta_y1 - theta_y2) / (theta_y1 + theta_y2)
-        return [
+        var = [
             0
             if (sum_y1[i] == 0 and sum_y2[i] == 0)
             else
             np.abs(theta_y1[i] - theta_y2[i]) / (theta_y1[i] + theta_y2[i])
             for i in range(len(label_tensor))
         ]
+        # main_logger.info("D_MAD result: {}".format(var))
+        return var
             
 
     @staticmethod
@@ -816,6 +901,343 @@ class MetricsUtils:
                 writer.write("Mutation-Backend-Pair,Inconsistency Score\n")
                 for dm_k,dm_v in metrics_result_dict.items():
                     writer.write("{},{}\n".format(dm_k,dm_v))
+
+# the class below is defined for the intermediate files interlayer mutation operator
+class Node(object):
+    def __init__(self, index, unique_name, shape, operator_name = None, node_module=None, input_list=None, output_list=None, output_name=None, copy_num=None):
+        self.index = index
+        self.unique_name = unique_name # module name + output name
+        self.operator_name = operator_name
+        self.node_module = node_module
+        self.input_list = input_list
+        self.output_list = output_list
+        self.shape = shape
+        self.output_name = output_name
+        self.copy_num = copy_num
+
+    def set_uniquename(self, unique_name):
+        self.unique_name = unique_name
+
+    def set_operator_name(self, operator_name):
+        self.operator_name = operator_name
+
+    def set_input(self, input_list):
+        self.input_list = input_list
+
+    def set_output(self, output_list):
+        self.output_list = output_list
+
+    def set_module(self, module):
+        self.node_module = module
+
+    def set_copy_num(self, copy_num):
+        self.copy_num = copy_num
+
+    def get_prefix(self):
+        unique_name = self.unique_name
+        prefix = unique_name.split(".")
+        prefix = '.'.join(prefix[:-1])
+        return prefix
+
+
+class Table(object):
+    def __init__(self, model_ast):
+        self.nodeList = dict()
+        self.ast = model_ast
+
+    def add_node(self, node):
+        self.nodeList[node.index] = node
+
+    def print(self):
+        for item in self.nodeList:
+            item = self.nodeList[item]
+            print(item.index, '+++++', item.unique_name, '+++++', item.operator_name, '+++++', item.node_module, '+++++', item.output_name, '+++++', item.shape, '+++++', item.input_list, '+++++', item.output_list, "+++++", item.copy_num)
+
+    def print_nodelist(self, indices):
+        keys = self.nodeList.keys()
+        if isinstance(indices, list):
+            for index in indices:
+                item = self.nodeList[index]
+                print(item.index, '+++++', item.unique_name, '+++++', item.operator_name, '+++++', item.node_module,
+                      '+++++', item.output_name, '+++++', item.shape, '+++++', item.input_list, '+++++', item.output_list,
+                      "+++++", item.copy_num)
+        elif isinstance(indices, int):
+            item = self.nodeList[indices]
+            print(item.index, '+++++', item.unique_name, '+++++', item.operator_name, '+++++', item.node_module,
+                  '+++++', item.output_name, '+++++', item.shape, '+++++', item.input_list, '+++++', item.output_list,
+                  "+++++", item.copy_num)
+
+    def node_list_len(self):
+        return len(self.nodeList)
+
+
+# the function below is defined for the intermediate files interlayer mutation operator
+def find_module(module_dict, unique_name):
+    '''
+    :param module_dict:
+    :param unique_name:
+    :return: a list of module names, including all the modules having this node
+    '''
+    unique_names = unique_name.split(".")
+    if len(unique_names) == 1:
+        return ["MindSporeModel"]
+    else:
+        module_list = ["MindSporeModel"]
+        module_name = unique_names[0]
+        init_func = module_dict["MindSporeModel"].body[0]
+        for assign in init_func.body:
+            if isinstance(assign, ast.Assign):
+                target = assign.targets[0].attr
+                if target == module_name:
+                    module =  assign.value.func.id
+                    module_list = deep_find_module(module_dict, module, unique_names[1:], module_list)
+                    return module_list
+        return None
+
+def deep_find_module(module_dict, module_prefix, unique_names, module_list):
+    # find Module based on module_prefix
+    for key, module in enumerate(module_dict):
+        if module_prefix == module:
+            if len(unique_names) == 1:
+                module_list.append(module)
+                return module_list
+            else:
+                module_list.append(module)
+                init_func = module_dict[module].body[0]
+                for assign in init_func.body:
+                    if isinstance(assign, ast.Assign):
+                        target = assign.targets[0].attr
+                        if target == unique_names[0]:
+                            module = assign.value.func.id
+                            module_list = deep_find_module(module_dict, module, unique_names[1:], module_list)
+                            return module_list
+    print("ERROR: Not find corresbonding module {}".format(unique_names))
+    return None
+
+
+def get_name(data_item):
+    unique_name, module_name = data_item[0], data_item[1]
+    module_names = module_name.split(".")
+    module_name = module_names[-1]
+    if len(module_names) > 1:
+        unique_name = '.'.join(module_names[:-1]) + '.' + unique_name
+    return unique_name, module_name
+
+
+def get_copy_name(module_list):
+    if not module_list:
+        return None
+    copy_name = list()
+    for i in range(len(module_list)):
+        copy_name.append(0)
+    return copy_name
+
+def construct_table(model_ast, analyzed_data, module_dict):
+
+
+    class MyNodeVisitor(ast.NodeVisitor):
+        def __init__(self):
+            super(MyNodeVisitor, self).__init__()
+
+        def visit_Assign(self, node: ast.Assign):
+            pass
+
+    table = Table(model_ast)
+    for i, data_item in enumerate(analyzed_data):
+        node = Node(index=i, unique_name=data_item[1], shape=data_item[2], output_name=data_item[0])
+
+        module_name = find_module(module_dict, node.unique_name)
+        copy_num = get_copy_name(module_name)
+        unique_name, operator_name = get_name(data_item)
+        node.set_uniquename(unique_name)
+        node.set_operator_name(operator_name)
+        node.set_module(module_name)
+        node.set_copy_num(copy_num)
+        node.set_input(data_item[3])
+        return_list = get_model_index(data_item[3], analyzed_data)
+        node.set_input(return_list)
+        return_list = get_model_output_index(data_item, analyzed_data)
+        node.set_output(return_list)
+        table.add_node(node)
+
+    return table
+
+def get_model_index(input_list, analyzed_data):
+    """
+    for example,
+    input_list: ['opt_conv2d_51', 'module3_1_opt'] or ['module5_0.module0_0.opt_batchnorm2d_0']
+    Each input_list can be obtained from the input element in analyzed_data[i]
+    analyzed_data is the same as file analyzed_data.json;
+    return a return_list, return_list[i] is the index of input_list[i]; and len(return_list) equals to len(input_list)
+    """
+    return_list = list()
+    for i, input in enumerate(input_list):
+        if 'input' in input:
+            # print("This is the input.")
+            return_list.append(-1)
+        else:
+            input_tuple = tuple(input.split("."))
+            input_name = input_tuple[-1] #最后一位是输入的name
+            input_prefix = input.rstrip("." + input_name)  #前缀用来筛选，防止出现相同的name
+            # print(input_name)
+            # print(input_prefix)
+            # print("===========")
+            for i, element in enumerate(analyzed_data):
+                if (input_name != 'x') and (input_name == element[0]) and (input_prefix in element[1]):
+                    return_list.append(i)
+                    break
+                elif (input_name == 'x') and (input_prefix in element[1]): #往上找到第一个的input的index;
+                    return_list.append(i)
+                    break
+                else:
+                    continue
+    return return_list
+
+def get_model_output_index(data_element, analyzed_data):
+    return_list = []
+
+    output_name = data_element[0]
+    op_tuple = tuple(data_element[1].split("."))
+    op_prefix = '.'.join(op_tuple[:-1])
+    if 'ast' in data_element[1]: #处理一些特殊情况；
+        input_search = output_name
+    elif len(op_prefix) != 0:
+        input_search = op_prefix + "." + output_name
+    else:
+        input_search = output_name
+    #默认analyzed_data的最后一条元素是最终的输出
+    if data_element == analyzed_data[-1]:
+        return_list.append(-2) #表示最终输出；
+    #先考虑相同class之内的；
+    for i, element in enumerate(analyzed_data):
+        input_list = element[-1]
+        for j, input in enumerate(input_list):
+            if input_search == input:
+                return_list.append(i)
+                break
+            else:
+                continue
+        if len(return_list) != 0:
+            break
+    #再考虑class跳转出去的：
+    if len(return_list) == 0:
+        for i, element in enumerate(analyzed_data):
+            entire_op_name = element[1]
+            if entire_op_name == op_prefix:
+                return_list.append(i)
+            if len(return_list) != 0:
+                break
+    # 最后可能还要考虑其他的特殊情况，需要不断补充
+    return return_list
+
+def set_copy_module_name(module_name, index):
+    module_name = module_name.split("_")[0]
+    return module_name + '_' + str(index)
+
+def same_module_list(table, index, module_list):
+    indices = list()
+    # two judge:
+    # 1. node module should be the same
+    # 2. unique name prefix should be the same
+    prefix = table.nodeList[index].get_prefix()
+    for i in range(table.node_list_len()):
+        # compare every node with module_list, if same, save it in indices
+        # if collections.Counter(table.nodeList[i].node_module) == collections.Counter(module_list):
+        #     indices.append(i)
+        if prefix == table.nodeList[i].get_prefix():
+            indices.append((i))
+    return indices
+
+
+def search_init_statement(table, index):
+    node = table.nodeList[index]
+    module_list = node.node_module
+    prefix = node.unique_name.split(".")[:-1]
+    prefix.append(node.operator_name)
+    return_list = list()
+    for i in range(len(module_list)):
+        for item in table.ast.body:
+            if isinstance(item, ast.ClassDef) and item.name == module_list[i]:
+                init_func = item.body[0]
+                for j in range(len(init_func.body)):
+                    if isinstance(init_func.body[j], ast.Assign) and init_func.body[j].targets[0].attr == prefix[i]:
+                        return_list.append(j)
+
+    return return_list
+
+def search_construct_statement(table, index):
+    pass #use pass for now
+
+
+
+def copy_module(table, index, param_dict):
+    '''
+    copy the module related the index, insert them in the model_ast
+    :param table:
+
+    :return:
+    '''
+    # get the module list
+    target_node = table.nodeList[index]
+    module_list = target_node.node_module
+    print(module_list)
+    new_module_list = ['MindSporeModel']
+    for i in range(1, len(module_list)):
+        module_name = module_list[i]
+        add_list = list()
+        for item in table.ast.body:
+            if isinstance(item, ast.ClassDef) and item.name == module_name:
+                tmp_ast = copy.deepcopy(item)
+                # modify table info
+
+                table.nodeList[index].copy_num[i] += 1
+                new_module_name = set_copy_module_name(tmp_ast.name, table.nodeList[index].copy_num[i])
+                new_module_list.append(new_module_name)
+                # table.nodeList[index].node_module[i] = new_module_name
+
+                # add copy module ast
+                tmp_ast.name = new_module_name
+                add_list.append(tmp_ast)
+
+    # modify table info, including other indexes that have the same module list
+    indices = same_module_list(table, index, module_list)
+    # every index need change node_module and copy_num
+    # new_module_list = table.nodeList[index].node_module
+    new_copy_num = table.nodeList[index].copy_num
+    for i in indices:
+        table.nodeList[i].node_module = new_module_list
+        table.nodeList[i].copy_num = new_copy_num
+
+    print(len(add_list))
+    # add copied ast
+    for module_ast in add_list:
+        # add every ast at the end of model ast.body
+        length = len(table.ast.body)
+        table.ast.body.insert(length, module_ast)
+    # modify every states in indices
+
+    return table
+
+def insert_node():
+    raise NotImplementedError
+
+def replace_node(table, index, new_node):
+    raise NotImplementedError
+
+def delete_node(table, index, model_ast, param_dict):
+    '''
+    :param table:
+    :param index:
+    :param model_ast:
+    :param param_dict:
+    :return:
+    '''
+    target_node = table.nodeList[index]
+    # if the module num is more than mindsporeModel, we need copy the module
+    if len(target_node.node_module) > 1:
+        table, model_ast = copy_module(table=table, index=index, model_ast=model_ast, param_dict=param_dict)
+    # delete the index
+
 
 if __name__ == '__main__':
     pass

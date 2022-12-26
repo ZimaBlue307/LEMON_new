@@ -16,6 +16,7 @@ import datetime
 import configparser
 import warnings
 import math
+from scripts.mutation.model_shape_utils import ShapeUitls
 
 np.random.seed(20200501)
 warnings.filterwarnings("ignore")
@@ -101,7 +102,7 @@ def continue_checker(**run_stat):
         raise Exception(f"Error! Stop Mode {s_mode} not Found!")
 
 
-def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size, exp, backends):
+def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size, exp, backends, cfg_name):
     """
     Generate models using mutate operators and store them
     """
@@ -117,7 +118,15 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
     # [origin_model_name] means seed pool only contains initial model at beginning.
     mutator_selector, mutant_selector = mutator_selector_func(mutate_ops), mutant_selector_func([origin_model_name],
                                                                                                 capacity=mutate_num + 1)
-    shutil.copytree(filename, origin_save_path)
+    if not os.path.exists(origin_save_path):
+        mutate_logger.info(f"start copy origin model from {filename} to {origin_save_path}")
+        shutil.copytree(filename, origin_save_path)
+    #model_analyze可以py文件中插装得到shape信息的，得到json文件
+    ShapeUitls.model_analyze(origin_save_path, "mindspore-1.8.1", cfg_name)
+    # print("===========================")
+    # print("generate the json of model {}".format(origin_model_name))
+    # print("===========================")
+    
     origin_model_status, res_dict, accumulative_inconsistency, _ = get_model_prediction(res_dict,
                                                                                         origin_save_path,
                                                                                         origin_model_name, exp,
@@ -143,7 +152,6 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
         mutator = mutator_selector.mutators[selected_op]
         mutant = mutant_selector.mutants[picked_seed]
 
-
         #new seed name is a folder name, including ckpt and python file
         new_seed_name = "{}_{}{}".format(picked_seed[:-3], selected_op, mutate_op_history[selected_op])
         # seed name would not be duplicate
@@ -166,6 +174,7 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
             if mutate_status == 0:
                 mutant.selected += 1
                 mutator.total += 1
+                
                 # execute this model on all platforms
                 predict_status, res_dict, accumulative_inconsistency, model_outputs = \
                     get_model_prediction(res_dict, new_seed_path, new_seed_name, exp, test_size, backends)
@@ -217,6 +226,7 @@ def generate_metrics_result(res_dict, predict_output, model_idntfr, test_size):
     mutate_logger.info("Generating Metrics Result")
     accumulative_incons = 0
     backends_pairs_num = 0
+    dataset_name = model_idntfr.split("_")[1]
     # Compare results pair by pair
     for pair in combinations(predict_output.items(), 2):
         backends_pairs_num += 1
@@ -228,6 +238,8 @@ def generate_metrics_result(res_dict, predict_output, model_idntfr, test_size):
             metrics_func = utils.MetricsUtils.get_metrics_by_name(metrics_name)
             # metrics_results in list type
             # metrics_results = metrics_func(prediction1, prediction2, y_test[:flags.test_size])
+            # print(type(prediction1))
+            # print(prediction2)
             metrics_results = metrics_func(prediction1, prediction2, dataset, dataset_name, test_size)
             
             mutate_logger.info(f"get metrics_results from backend pair: {bk_pair}")
@@ -280,7 +292,8 @@ def get_model_prediction(res_dict, model_path, model_name, exp, test_size, backe
 
     # run ok on all platforms
     if all_backends_predict_status:
-        predictions = list(predict_output.values())
+        predictions = list(predict_output.values()) # predictions长度为2；
+        # print(len(predictions))
         # 为什么这个prediction打印不出来呢？
         # model_idntfr = resnet20_cifar100_orig
         res_dict, accumulative_incons = generate_metrics_result(res_dict=res_dict, predict_output=predict_output, model_idntfr=model_idntfr, test_size=test_size)
@@ -364,6 +377,7 @@ if __name__ == "__main__":
     metrics_result_dir = os.path.join(experiment_dir, "metrics_result")# /home/lemon_proj/lyh/LEMON_new/lemon_outputs/alexnet_cifar100/metrics_result
     
     dataset, dataset_name = utils.DataUtils.get_data_by_exp_with_bk(flags.exp, flags.test_size, backend_name = "mindspore1.8.1", cfg_name=flags.config_name)
+    mutate_logger.info(f"get test data with {dataset_name}")
     pool_size = lemon_cfg['parameters'].getint('pool_size')
     python_prefix = lemon_cfg['parameters']['python_prefix'].rstrip("/")
 
@@ -371,7 +385,7 @@ if __name__ == "__main__":
         metrics_list = lemon_cfg['parameters']['metrics'].split(" ") #D_MAD
         lemon_results = {k: dict() for k in metrics_list}
         lemon_results = _generate_and_predict(lemon_results, flags.model, flags.mutate_num, flags.mutate_op,
-                                              flags.test_size, flags.exp, flags.backends)
+                                              flags.test_size, flags.exp, flags.backends, flags.config_name)
         with open("{}/{}_lemon_results.pkl".format(experiment_dir, flags.exp), "wb+") as f:
             pickle.dump(lemon_results, file=f)
         utils.MetricsUtils.generate_result_by_metrics(metrics_list, lemon_results, metrics_result_dir, flags.exp)

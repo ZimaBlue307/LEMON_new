@@ -75,6 +75,6 @@ def auto_generate_import_model_script(model_need_import):
     with open(f"{script_path}/auto_import_model.py", "w") as fw:
         fw.write(script)
     
-if __name__ == "__main__":
-    model_need_import = "/home/lemon_proj/lyh/LEMON_new/lemon_outputs/resnet20_cifar100/mut_model/resnet20_cifar100_orig_NAI2"
-    auto_generate_import_model_script(model_need_import)
+# if __name__ == "__main__":
+#     model_need_import = "/home/lemon_proj/lyh/LEMON_new/lemon_outputs/resnet20_cifar100/mut_model/resnet20_cifar100_orig_NAI2"
+#     auto_generate_import_model_script(model_need_import)

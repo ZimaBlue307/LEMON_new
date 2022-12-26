@@ -6,6 +6,7 @@ from operator import truediv
 from scripts.mutation.mutation_utils import No_Activation
 # from mutation_utils import No_Activation
 import mindspore
+from mindspore.rewrite import *
 import numpy as np
 from scripts.tools import utils
 import math
@@ -16,7 +17,11 @@ import random
 import os
 import warnings
 from scripts.logger.lemon_logger import Logger
+import pickle
 import datetime
+import ast
+import astunparse
+
 warnings.filterwarnings("ignore")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # 只显示 warning 和 Error
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -25,7 +30,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 mylogger = Logger()
 
 #add function to determine whether the layer is an activation function
-def is_layer_in_activation_list(layer):
+def is_layer_in_activation_list(operator_name):
     import mindspore
     activation_list = [mindspore.nn.layer.activation.Softmin, mindspore.nn.layer.activation.Softmax, mindspore.nn.layer.activation.LogSoftmax,
                        mindspore.nn.layer.activation.ReLU, mindspore.nn.layer.activation.ReLU6, mindspore.nn.layer.activation.RReLU,
@@ -76,12 +81,33 @@ def _assert_indices(mutated_layer_indices: List[int] , depth_layer: int):#done
     assert max(mutated_layer_indices) < depth_layer,"Max index should be less than layer depth"
     assert min(mutated_layer_indices) >= 0,"Min index should be greater than or equal to zero"
 
-
+# may need to change
+def _shuffle_conv1d(layer, mutate_ratio):
+    new_layer = copy.deepcopy(layer)
+    parameters = new_layer.get_parameters()
+    for i, parameter in enumerate(parameters):
+        val = parameter.data.asnumpy()
+        if len(val.shape) > 1:
+            val_shape = val.shape
+            num_of_output_channels, num_of_input_channels, filter_width, filter_height = val_shape
+            mutate_output_channels = utils.ModelUtils.generate_permutation(num_of_output_channels, mutate_ratio)
+            for output_channel in mutate_output_channels:
+                copy_list = val.copy()
+                copy_list = np.reshape(copy_list, (filter_width, filter_height, num_of_input_channels, num_of_output_channels))
+                copy_list = np.reshape(copy_list,(filter_width * filter_height * num_of_input_channels, num_of_output_channels))
+                selected_list = copy_list[:,output_channel]
+                shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
+                copy_list[:, output_channel] = shuffle_selected_list
+                val = np.reshape(copy_list,(num_of_output_channels, num_of_input_channels, filter_width, filter_height))
+            from mindspore import Tensor
+        val = Tensor(val, dtype=mindspore.float32)
+        parameter.set_data(val)
+    return new_layer
 #done
 def _shuffle_conv2d(layer, mutate_ratio):
     new_layer = copy.deepcopy(layer)
     parameters = new_layer.get_parameters()
-    new_weights = []
+    # new_weights = []
     for i, parameter in enumerate(parameters):
         # val is bias if len(val.shape) == 1
         # if len(val.shape) > 1:
@@ -101,7 +127,6 @@ def _shuffle_conv2d(layer, mutate_ratio):
             from mindspore import Tensor
         val = Tensor(val, dtype=mindspore.float32)
         parameter.set_data(val)
-
             # val_shape = val.shape
             # filter_width, filter_height, num_of_input_channels, num_of_output_channels = val_shape
             # mutate_output_channels = utils.ModelUtils.generate_permutation(num_of_output_channels, mutate_ratio)
@@ -113,9 +138,34 @@ def _shuffle_conv2d(layer, mutate_ratio):
             #     copy_list[:, output_channel] = shuffle_selected_list
             #     val = np.reshape(copy_list,(filter_width, filter_height, num_of_input_channels, num_of_output_channels))
         # new_weights.append(val)
-
     return new_layer
 
+
+# this might be used when improving the mutation function within a layer
+def _shuffle_conv3d(layer, mutate_ratio):
+    new_layer = copy.deepcopy(layer)
+    parameters = new_layer.get_parameters()
+    # new_weights = []
+    for i, parameter in enumerate(parameters):
+        # val is bias if len(val.shape) == 1
+        # if len(val.shape) > 1:
+        val = parameter.data.asnumpy()
+        if len(val.shape) > 1:
+            val_shape = val.shape
+            num_of_output_channels, num_of_input_channels, filter_width, filter_height = val_shape
+            mutate_output_channels = utils.ModelUtils.generate_permutation(num_of_output_channels, mutate_ratio)
+            for output_channel in mutate_output_channels:
+                copy_list = val.copy()
+                copy_list = np.reshape(copy_list, (filter_width, filter_height, num_of_input_channels, num_of_output_channels))
+                copy_list = np.reshape(copy_list,(filter_width * filter_height * num_of_input_channels, num_of_output_channels))
+                selected_list = copy_list[:,output_channel]
+                shuffle_selected_list = utils.ModelUtils.shuffle(selected_list)
+                copy_list[:, output_channel] = shuffle_selected_list
+                val = np.reshape(copy_list,(num_of_output_channels, num_of_input_channels, filter_width, filter_height))
+            from mindspore import Tensor
+        val = Tensor(val, dtype=mindspore.float32)
+        parameter.set_data(val)
+    return new_layer
 
 #done
 def _shuffle_dense(layer, mutate_ratio):
@@ -144,44 +194,36 @@ def _shuffle_dense(layer, mutate_ratio):
         parameter.set_data(val)
     return new_layer
 
-# change:在ms中，以model的symboltree中的node数量替代model layer
-# mapping_index_node = dict()#key是数字索引，value是node
-# mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-# 目前缺少获得node的output or input shape的方法
-def _LA_model_scan(model, new_layers, mapping_index_node, mapping_node_parent, mutated_layer_indices=None):
-    layer_utils = LayerUtils()
-    model_tree = mindspore.rewrite.SymbolTree.create(model)
-    len_tree = 0
-    for node in model_tree.nodes():
-        len_tree = utils.ToolUtils.judge_node(model_tree, node, len_tree, mapping_index_node, mapping_node_parent)
-    # new layers can never be added after the last layer
-    # mapping_index_node = dict()#key是数字索引，value是node
-    # mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-    positions_to_add = np.arange(len_tree - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(positions_to_add, len_tree)
 
+def _LA_model_scan(irtable, model, new_layers, mutated_layer_indices = None):
+    from lemon_tree.mutation_utils_mindspore import LayerUtils
+    layer_utils = LayerUtils()
+    positions_to_add = np.arange(len(irtable) - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len(irtable))
     insertion_points = {}
-    #insertion_points是一个字典，key是node索引，value是得到可插入层
     available_new_layers = [layer for layer in
                             layer_utils.available_model_level_layers.keys()] if new_layers is None else new_layers
-    count = 0
-    while count < len_tree:
-        tmp_node = mapping_index_node[count]
-        tmp_instance = tmp_node.get_instance()
-        if is_layer_softmax(tmp_instance): 
-            break #跟LC_LR_scan一样的问题：为啥不是continue而是break？因为最后一层如果是softmax基本也结束了
-        if count in positions_to_add:
+    nodeList = irtable.nodeList
+    positions_to_add = np.arange(len(nodeList) - 1)
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        operator_name = node.operator_name
+        # input_list = node.input_list
+        # output_list = node.output_list
+        output_shape = node.shape
+        if 'softmax' in operator_name.lower():
+            break
+        if node_index in positions_to_add:
             for available_new_layer in available_new_layers:
-                if layer_utils.is_input_legal[available_new_layer](tmp_node.output.shape):
-                    #判断node的输入shape是否合法,目前tmp_node.output.shape还无法得到；
-                    if count not in insertion_points.keys():
-                        insertion_points[count] = [available_new_layer]
+                # first judge whether the input is legal
+                if layer_utils.is_input_legal[available_new_layer](output_shape):
+                    if node_index not in insertion_points.keys():
+                        insertion_points[node_index] = [available_new_layer]
                     else:
-                        insertion_points[count].append(available_new_layer)
-        count += 1
+                        insertion_points[node_index].append(available_new_layer)
     return insertion_points
 
-#left layer.output.shape unmodified
+
 def _MLA_model_scan(model, new_layers, mapping_index_node, mapping_node_parent, mutated_layer_indices=None):
     layer_matching = LayerMatching()# need to change file LayerMatching
     #layers = model.layers
@@ -217,60 +259,53 @@ def _MLA_model_scan(model, new_layers, mapping_index_node, mapping_node_parent, 
         count += 1
     return insertion_points
 
-#done
-# mapping_index_node = dict()#key是数字索引，value是node
-# mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-def _LC_and_LR_scan(model, mutated_layer_indices, mapping_index_node, mapping_node_parent):
-    model_tree = mindspore.rewrite.SymbolTree.create(model)
-    len_tree = 0
-    for node in model_tree.nodes():
-        len_tree = utils.ToolUtils.judge_node(model_tree, node, len_tree, mapping_index_node, mapping_node_parent)
-    # new layers can never be added after the last layer. since the last layer must be return layer
-    mutated_layer_indices = np.arange(len_tree-1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(mutated_layer_indices, len_tree)
 
+def _LC_and_LR_scan(irtable):
     available_layer_indices = []
-    count = 0
-    while count < len_tree:
-        tmp_node = mapping_index_node[count]
-        tmp_instance = tmp_node.get_instance()
-        if is_layer_softmax(tmp_instance): 
-            break #为什么这里是break而不是continue呢？
-        class_type_str = str(type(tmp_instance))
-        #不针对classtype是none的层进行修改：input, return, transpose等等
-        if class_type_str == "<class 'NoneType'>":
-            continue
-        #不针对存在多个输入的node进行修改
-        input_lists = tmp_node.get_inputs()
-        output_lists = tmp_node.get_users()
-        if len(input_lists) >= 2:
-            continue
-        #只有输入数量和输出数量相等且都为1，才可以被加入available_layer_indices
-        if len(input_lists) == len(output_lists):
-            available_layer_indices.append(count)
-        count += 1
-        
+    nodeList = irtable.nodeList
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        operator_name = node.operator_name
+        input_list = node.input_list
+        output_list = node.output_list
+        output_shape = node.shape
+        #先判断是不是激活函数，如果是则continue，如果不是则继续；
+        if 'softmax' in operator_name.lower():
+            break
+        #保证只有一个输入和输出，并且不是第一层和最后一层
+        if len(input_list) == 1 and len(output_list) == 1 and input_list[0] >=0 and output_list[0] >= 0:
+            input_node = nodeList[input_list[0]]
+            input_shape = input_node.shape
+            if output_shape == input_shape:
+                available_layer_indices.append(node_index)
+            else:
+                continue
     np.random.shuffle(available_layer_indices)
     return available_layer_indices
 
 
-def _LS_scan(model):
-    layers = model.layers
+def _LS_scan(model, irtable):
     shape_dict = {}
-    for i,layer in enumerate(layers):
-        if is_layer_softmax(layer):
+    nodeList = irtable.nodeList
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        #如果该层是softmax，则break；暂时先使用这个判断；
+        lower_op_name = node.operator_name.lower()
+        if 'softmax' in lower_op_name:
             break
-        if isinstance(layer.input, list) and len(layer.input) > 1:
+        input_list = node.input_list
+        if len(input_list) > 1:
             continue
-        layer_input_shape = [str(i) for i in layer.input.shape.as_list()[1:]]
-        layer_output_shape = [str(i) for i in layer.output.shape.as_list()[1:]]
-        input_shape = "-".join(layer_input_shape)
-        output_shape = "-".join(layer_output_shape)
-        k = "+".join([input_shape,output_shape])
+        output_shape = node.shape
+        input_node = nodeList[input_list[0]]
+        input_shape = input_node.shape
+        input_shape_connect = "-".join(input_shape)
+        output_shape_connect = "-".join(output_shape)
+        k = "+".join([input_shape_connect, output_shape_connect])
         if k not in shape_dict.keys():
-            shape_dict[k] = [i]
+            shape_dict[k] = [node_index]
         else:
-            shape_dict[k].append(i)
+            shape_dict[k].append(node_index)
     return shape_dict
 
 #done and tested
@@ -282,10 +317,10 @@ def GF_mut(model, mutation_ratio, distribution='normal', STD=0.1, lower_bound=No
         mylogger.error('Lower bound and Upper bound is required for uniform distribution.')
         raise ValueError('Lower bound and Upper bound is required for uniform distribution.')
 
-    mylogger.info('copying model...')
+    # mylogger.info('copying model...')
 
     GF_model = utils.ModelUtils.model_copy(model, 'GF')#need to change
-    mylogger.info('model copied')
+    # mylogger.info('model copied')
 
     # layers = GF_model.cells_and_names()
     len_layers, _ = utils.ToolUtils.get_layers(model)
@@ -296,8 +331,7 @@ def GF_mut(model, mutation_ratio, distribution='normal', STD=0.1, lower_bound=No
 
     #use iteration to get layer
     layer_name, layer = utils.ModelUtils.get_layer(GF_model, chosed_index)
-    
-    mylogger.info('executing mutation of {}'.format(layer_name))
+    mylogger.info('executing mutation in {} index {}'.format(layer_name, chosed_index))
     # weights = layer.get_weights()#change
     parameters = layer.get_parameters()
     from mindspore.ops import Reshape
@@ -332,14 +366,13 @@ def GF_mut(model, mutation_ratio, distribution='normal', STD=0.1, lower_bound=No
 
     return GF_model
 
-#done
+#done, but can be updated
 def WS_mut(model, mutation_ratio, mutated_layer_indices=None):
     WS_model = utils.ModelUtils.model_copy(model, 'WS')
     # layers = WS_model.layers
     layers = WS_model.cells_and_names()
     # depth_layer = len(layers)
     depth_layer, layer_map = utils.ToolUtils.get_layers(WS_model)
-
     mutated_layer_indices = np.arange(depth_layer) if mutated_layer_indices is None else mutated_layer_indices
     if 0 < mutation_ratio <= 1.0:
         _assert_indices(mutated_layer_indices, depth_layer)
@@ -350,15 +383,24 @@ def WS_mut(model, mutation_ratio, mutated_layer_indices=None):
         weights = list(layer.get_parameters())
         # layer_name = type(layer).__name__
         layer_name = layer.cls_name
-        WS_layer = copy.deepcopy(layer)
-        # if layer_name == "Conv2D" and len(weights) != 0:
-        if layer_name == "Conv2d" and len(weights) != 0:
+        # WS_layer = copy.deepcopy(layer)
+        # if layer_name == "Conv2d" and len(weights) != 0:
+        if "Conv2d" in layer_name and len(weights) != 0:
             # layer.set_weights(_shuffle_conv2d(weights, mutation_ratio))
             layer = _shuffle_conv2d(layer, mutation_ratio)
-        #not changed, further work
+        elif "Conv1d" in layer_name and len(weights) != 0:
+            # layer = _shuffle_conv1d(layer, mutation_ratio)
+            pass
+        elif "Conv3d" in layer_name and len(weights) != 0:
+            # layer = _shuffle_conv3d(layer, mutation_ratio)
+            pass
         elif layer_name == "Dense" and len(weights) != 0:
             layer.set_weights(_shuffle_dense(weights, mutation_ratio))
-            layer = WS_layer
+            # layer = WS_layer
+        elif layer_name == "BatchNormalization" and len(weights) != 0:
+            pass
+        elif layer_name == "DepthwiseConv2D" and len(weights) != 0:
+            pass
         else:
             pass
     else:
@@ -545,25 +587,22 @@ def ARem_mut(model, mutated_layer_indices=None):
     len_ARem_tree = 0#该模型symboltree的长度
     mapping_index_node = dict()#key是数字索引，value是node
     mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-    for ARem_node in ARem_tree.nodes():
-        len_ARem_tree = utils.ToolUtils.judge_node(ARem_tree, ARem_node, len_ARem_tree, mapping_index_node, mapping_node_parent)
+    len_ARem_tree, mapping_index_node, mapping_node_parent = utils.ToolUtils.judge_node(ARem_tree, len_ARem_tree, mapping_index_node, mapping_node_parent)    
     mutated_layer_indices = np.arange(len_ARem_tree-1) if mutated_layer_indices is None else mutated_layer_indices
     np.random.shuffle(mutated_layer_indices)
     _assert_indices(mutated_layer_indices, len_ARem_tree)
-
     for i in mutated_layer_indices:
         #先获得要修改的ARem_node是哪个节点；
         ARem_node = mapping_index_node[i]
         ARem_node_instance = ARem_node.get_instance()
         if is_layer_in_activation_list_without_softmax(ARem_node_instance):
             # print("the node need to remove: ", ARem_node.get_name())
-            parent_tree = mapping_node_parent[i]#获得这个节点所在的symboltree
             #print(ARem_node.get_name(), "has parent_tree: ", parent_tree)
-
             ARem_node_inputs = ARem_node.get_inputs()#获取当前节点的输入节点列表
             ARem_node_outputs = ARem_node.get_users()#获取当前节点的输出节点列表
             if len(ARem_node_inputs) == 1 and len(ARem_node_outputs) == 1:
                 #print("the node ", ARem_node.get_name(), "has only one input.")
+                parent_tree = mapping_node_parent[i]#获得这个节点所在的symboltree
                 ARem_node_input = ARem_node_inputs[0]
                 ARem_node_output = ARem_node_outputs[0]
                 ARem_node_output.set_arg_by_node(0, ARem_node_input)
@@ -576,32 +615,63 @@ def ARem_mut(model, mutated_layer_indices=None):
                 if len(ARem_node_outputs) > 1:
                     print(ARem_node.get_name(), " has multiple outputs.")
                     continue
+    # 还要补上return model的办法；
     ARem_tree.set_saved_file_name("./tmp/test_ARem.py")
     ARem_tree.save_network_to_file()
-    ARem_new_model = ARem_tree._symbol_tree._origin_network #这一行存在问题；
+    # print(ARem_tree.get_code())
+    global_vars = ARem_tree._symbol_tree._global_vars
+    # print(type(global_vars))
+    # print(global_vars.keys())
+    # print("===========================")
+    # print(global_vars['handler'])
+    from tmp.test_ARem import MindSporeModel
+    ARem_new_model = MindSporeModel(global_vars)
     return ARem_new_model
 
 # replaces the activation function of a layer 
 # with a randomly selected activation function
-def ARep_mut(model, new_activations=None, mutated_layer_indices=None):
-
-    activation_utils = ActivationUtils()
-    ARep_model = utils.ModelUtils.model_copy(model, 'ARep')
-    layers = model.cells_and_names()
-    len_layers = utils.ToolUtils.get_layers(ARep_model)[0]
-
-    # the activation of last layer should not be replaced
-    mutated_layer_indices = np.arange(len_layers - 1) if mutated_layer_indices is None else mutated_layer_indices
-    np.random.shuffle(mutated_layer_indices)
-    _assert_indices(mutated_layer_indices, len_layers)
-    for i in mutated_layer_indices:
-        #首先判断是不是activation层
-        #考虑两种情况 1.本身是activation层 2.不是activation层，再分析是否含有activation
-        layer_name, layer_class = utils.ModelUtils.get_layer(ARep_model, i)
-        if is_layer_in_activation_list_without_softmax(layer_class):
-            layer.activation = activation_utils.pick_activation_randomly(new_activations)
-            break
-    return ARep_model
+# def ARep_mut(model, new_activations=None, mutated_layer_indices=None):
+#     activation_utils = ActivationUtils()
+#     ARep_model = utils.ModelUtils.model_copy(model, 'ARep')
+#     # len_layers = utils.ToolUtils.get_layers(ARep_model)[0]
+#     ARep_tree = mindspore.rewrite.SymbolTree.create(ARep_model)
+#     len_ARep_tree = 0#该模型symboltree的长度
+#     mapping_index_node = dict()#key是数字索引，value是node
+#     mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
+#     len_ARep_tree, mapping_index_node, mapping_node_parent = utils.ToolUtils.judge_node(ARep_tree, len_ARep_tree, mapping_index_node, mapping_node_parent)
+#     # the activation of last layer should not be replaced
+#     mutated_layer_indices = np.arange(len_ARep_tree - 1) if mutated_layer_indices is None else mutated_layer_indices
+#     np.random.shuffle(mutated_layer_indices)
+#     _assert_indices(mutated_layer_indices, len_ARep_tree)
+#     for i in mutated_layer_indices:
+#         #先获得要修改的ARep_node是哪个节点；
+#         ARep_node = mapping_index_node[i]
+#         ARep_node_instance = ARep_node.get_instance()
+#         if is_layer_in_activation_list_without_softmax(ARep_node_instance):
+#             # print("the node need to remove: ", ARem_node.get_name())
+#             parent_tree = mapping_node_parent[i]#获得这个节点所在的symboltree
+#             #print(ARem_node.get_name(), "has parent_tree: ", parent_tree)
+#             ARem_node_inputs = ARep_node.get_inputs()#获取当前节点的输入节点列表
+#             ARem_node_outputs = ARep_node.get_users()#获取当前节点的输出节点列表
+#             if len(ARem_node_inputs) == 1 and len(ARem_node_outputs) == 1:
+#                 #print("the node ", ARem_node.get_name(), "has only one input.")
+#                 ARem_node_input = ARem_node_inputs[0]
+#                 ARem_node_output = ARem_node_outputs[0]
+#                 # need to add the logic of repalcing a layer;
+#                 break
+#             else:
+#                 if len(ARem_node_inputs) > 1:
+#                     print(ARep_node.get_name(), " has multiple inputs.")
+#                     continue
+#                 if len(ARem_node_outputs) > 1:
+#                     print(ARep_node.get_name(), " has multiple outputs.")
+#                     continue
+#     # 还要补上return model的办法；
+#     # ARem_tree.set_saved_file_name("./tmp/test_ARem.py")
+#     # ARem_tree.save_network_to_file()
+#     # global_vars = ARem_tree._symbol_tree._global_vars
+#     # return ARem_new_model
+    
 
 # Layer Addition: selects a layer, whose input shape and
 # output shape are consistent and then inserts it to a 
@@ -782,6 +852,7 @@ def LC_mut(model, mutated_layer_indices=None):
     LC_model = utils.ModelUtils.model_copy(model, 'LC')
     mapping_index_node = dict()#key是数字索引，value是node
     mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
+    #scan先暂时放着
     available_layer_indices = _LC_and_LR_scan(LC_model, mutated_layer_indices, mapping_index_node, mapping_node_parent)
 
     if len(available_layer_indices) == 0:
@@ -842,12 +913,120 @@ def LC_mut(model, mutated_layer_indices=None):
     K.batch_set_value(tuples)
     return new_model
 
+def set_copy_module_name(module_name, index):
+    module_name = module_name.split("_")[0]
+    return module_name + '_' + str(index)
+
+def same_module_list(table, index, module_list):
+    indices = list()
+    # two judge:
+    # 1. node module should be the same
+    # 2. unique name prefix should be the same
+
+    prefix = table.nodeList[index].get_prefix()
+    for i in range(table.node_list_len()):
+        # compare every node with module_list, if same, save it in indices
+        # if collections.Counter(table.nodeList[i].node_module) == collections.Counter(module_list):
+        #     indices.append(i)
+        if prefix == table.nodeList[i].get_prefix():
+            indices.append((i))
+
+    return indices
+
+def copy_module(table, index, param_dict):
+    '''
+    copy the module related the index, insert them in the model_ast
+    :param table:
+
+    :return:
+    '''
+    # get the module list
+    target_node = table.nodeList[index]
+    prefix = target_node.unique_name.split(".")[:-1]
+    prefix = ".".join(prefix)
+    module_list = target_node.node_module
+    print(module_list)
+    new_module_list = ['MindSporeModel']
+    add_list = list()
+    for i in range(1, len(module_list)):
+        module_name = module_list[i]
+
+        for item in table.ast.body:
+            if isinstance(item, ast.ClassDef) and item.name == module_name:
+                tmp_ast = copy.deepcopy(item)
+                # modify table info
+
+                table.nodeList[index].copy_num[i] += 1
+                new_module_name = set_copy_module_name(tmp_ast.name, table.nodeList[index].copy_num[i])
+                new_module_list.append(new_module_name)
+                # table.nodeList[index].node_module[i] = new_module_name
+
+                # add copy module ast
+                tmp_ast.name = new_module_name
+                super_node = tmp_ast.body[0].body[0]
+                if isinstance(super_node, ast.Expr):
+                    super_param = super_node.value.func.value.args
+                    super_param[0].id = new_module_name
+                add_list.append(tmp_ast)
+
+    # modify table info, including other indexes that have the same module list
+    indices = same_module_list(table, index, module_list)
+    # every index need change node_module and copy_num
+    # new_module_list = table.nodeList[index].node_module
+    new_copy_num = table.nodeList[index].copy_num
+    for i in indices:
+        table.nodeList[i].node_module = new_module_list
+        table.nodeList[i].copy_num = new_copy_num
+
+    print(len(add_list))
+    # add copied ast
+    for module_ast in add_list:
+        # add every ast at the end of model ast.body
+        length = len(table.ast.body)
+        table.ast.body.insert(length, module_ast)
+
+    # update ast info
+    # modify every states in indices
+    for i in range(len(new_module_list) - 1):
+        for j in range(len(table.ast.body)):
+            if isinstance(table.ast.body[j], ast.ClassDef) and table.ast.body[j].name == module_list[i]:
+                init_node = table.ast.body[j].body[0].body[target_node.ast_index[i][0]].value
+                # init_node.value.func = new_module_list[i+1]
+                statement = astunparse.unparse(init_node)
+                node_split = statement.split("(")
+                node_split[0] = new_module_list[i+1]
+                new_statement = "(".join(node_split)
+                new_node = ast.parse(new_statement).body[0].value
+                table.ast.body[j].body[0].body[target_node.ast_index[i][0]].value = new_node
+                print(table.ast.body[j].body[0].body[target_node.ast_index[i][0]].value)
+
+    # for i in indices:
+    #     # change init func info
+    #
+
+    # copy param
+    # new_prefix = target_node.unique_name.split(".")[:-1]
+    # new_prefix = ".".join(new_prefix)
+    # added_param = dict()
+    # for key in enumerate(param_dict):
+    #     if prefix in key:
+    #         param = copy.deepcopy(param_dict[key])
+    #         new_op_name = key.replace(prefix, new_prefix)
+    #         added_param[new_op_name] = param
+    # param_dict = param_dict + added_param
+
+    return table, param_dict
+
 #Layer Removal: removes a layer, whose input shape and output shape are consistent
-def LR_mut(model, mutated_layer_indices=None):
-    LR_model = utils.ModelUtils.model_copy(model, 'LR') #model copy function, jump for now
-    mapping_index_node = dict()#key是数字索引，value是node
-    mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-    available_layer_indices = _LC_and_LR_scan(LR_model, mutated_layer_indices, mapping_index_node, mapping_node_parent)
+def LR_mut(model_path, mutated_layer_indices=None):
+    # LR_model = utils.ModelUtils.model_copy(model, 'LR') #model copy function, jump for now
+    model_dir = os.path.dirname(model_path)
+    model_name = model_path.split("/")[-1]
+    table_name = tuple(model_name.split("."))[0] + '_table.pkl'
+    with open(table_name, 'r') as f:
+        irtable = pickle.load(os.path.join(model_dir, table_name))
+    # scan函数先放着；
+    available_layer_indices = _LC_and_LR_scan(irtable)
     if len(available_layer_indices) == 0:
         mylogger.warning('no appropriate node to remove (input and output shape should be same)')
         return None
@@ -864,37 +1043,12 @@ def LR_mut(model, mutated_layer_indices=None):
     LR_node_output = LR_node_outputs[0]
     LR_node_output.set_arg_by_node(0, LR_node_input)
     parent_tree.erase_node(LR_node)
-
-
-    # update weights unchanged
-    assert len(new_model.layers) == len(model.layers) - 1
-    tuples = []
-    old_model_layers = {}
-    for layer in model.layers:
-        old_model_layers[layer.name] = layer
-
-    new_model_layers = {}
-    for layer in new_model.layers:
-        layer_name = layer.name
-        if layer_name.endswith('_copy_LR'):
-            key = layer_name[:-8]
-        else:
-            key = layer_name
-        new_model_layers[key] = layer
-
-    for layer_name in new_model_layers.keys():
-        layer_weights = old_model_layers[layer_name].get_weights()
-
-        for sw, w in zip(new_model_layers[layer_name].weights, layer_weights):
-            shape_sw = np.shape(sw)
-            shape_w = np.shape(w)
-            assert len(shape_sw) == len(shape_w)
-            assert shape_sw[0] == shape_w[0]
-            tuples.append((sw, w))
-
-    import keras.backend as K
-    K.batch_set_value(tuples)
-    return new_model
+    LR_tree.set_saved_file_name("./tmp/test_LR.py")
+    LR_tree.save_network_to_file()
+    LR_global_vars = LR_tree._symbol_tree._global_vars
+    from tmp.test_LR import MindsporeModel
+    LR_new_model = MindsporeModel(LR_global_vars)
+    return LR_new_model
 
 #Layer Switch: switches two layers, both of which have the same input shape and output shape
 def LS_mut(model):

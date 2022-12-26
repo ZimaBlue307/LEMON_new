@@ -77,7 +77,7 @@ if __name__ == '__main__':
             origin_model_file = os.path.join(flags.origin_model_dir,origin_model_name)# origin_model_dir要从LEMON_new这一层开始写
             mutate_lemon = "{}/lemon/bin/python -u -m run.mutate_lemon --mutate_op {} --model {} --output_dir {}" \
                             " --backends {} --mutate_num {} --mutate_ratio {} --exp {} --test_size {} --redis_db {} --config_name {}"\
-                            .format(flags.python_prefix,flags.mutate_ops,flags.origin_model_dir,flags.output_dir,flags.backend,
+                            .format(flags.python_prefix,flags.mutate_ops,origin_model_file,flags.output_dir,flags.backend,
                                     flags.mutate_num,flags.mutate_ratio,exp_identifier,flags.test_size,flags.redis_db,config_name)
             # print(mutate_lemon)
             os.system(mutate_lemon)            
