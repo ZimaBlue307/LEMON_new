@@ -1,73 +1,68 @@
 Module(body=[
-  Expr(value=Str(s='Alexnet.')),
   Import(names=[alias(
     name='numpy',
     asname='np')]),
   Import(names=[alias(
-    name='mindspore.nn',
-    asname='nn')]),
+    name='mindspore',
+    asname=None)]),
+  Import(names=[alias(
+    name='mindspore.numpy',
+    asname='ms_np')]),
+  Import(names=[alias(
+    name='mindspore.ops',
+    asname='P')]),
   ImportFrom(
-    module='mindspore.ops',
+    module='mindspore',
     names=[alias(
-      name='operations',
-      asname='P')],
-    level=0),
-  ImportFrom(
-    module='mindspore.ops',
-    names=[alias(
-      name='functional',
-      asname='F')],
-    level=0),
-  ImportFrom(
-    module='mindspore.common.tensor',
-    names=[alias(
-      name='Tensor',
+      name='nn',
       asname=None)],
     level=0),
+  ImportFrom(
+    module='mindspore',
+    names=[
+      alias(
+        name='Tensor',
+        asname=None),
+      alias(
+        name='Parameter',
+        asname=None)],
+    level=0),
   Import(names=[alias(
-    name='mindspore.common.dtype',
-    asname='mstype')]),
-  FunctionDef(
-    name='fc_with_initialize',
-    args=arguments(
-      args=[
-        arg(
-          arg='input_channels',
-          annotation=None),
-        arg(
-          arg='out_channels',
-          annotation=None),
-        arg(
-          arg='has_bias',
-          annotation=None)],
-      vararg=None,
-      kwonlyargs=[],
-      kw_defaults=[],
-      kwarg=None,
-      defaults=[NameConstant(value=True)]),
-    body=[Return(value=Call(
-      func=Attribute(
-        value=Name(
-          id='nn',
-          ctx=Load()),
-        attr='Dense',
+    name='mindspore.context',
+    asname='context')]),
+  Expr(value=Call(
+    func=Attribute(
+      value=Name(
+        id='context',
         ctx=Load()),
-      args=[
-        Name(
-          id='input_channels',
-          ctx=Load()),
-        Name(
-          id='out_channels',
-          ctx=Load())],
-      keywords=[keyword(
-        arg='has_bias',
+      attr='set_context',
+      ctx=Load()),
+    args=[],
+    keywords=[keyword(
+      arg='mode',
+      value=Attribute(
         value=Name(
-          id='has_bias',
-          ctx=Load()))]))],
-    decorator_list=[],
-    returns=None),
+          id='context',
+          ctx=Load()),
+        attr='GRAPH_MODE',
+        ctx=Load()))])),
+  Expr(value=Call(
+    func=Attribute(
+      value=Name(
+        id='context',
+        ctx=Load()),
+      attr='set_context',
+      ctx=Load()),
+    args=[],
+    keywords=[
+      keyword(
+        arg='save_graphs',
+        value=NameConstant(value=True)),
+      keyword(
+        arg='save_graphs_path',
+        value=Str(s='./data'))])),
   ClassDef(
-    name='DataNormTranspose',
+    name='Module2',
     bases=[Attribute(
       value=Name(
         id='nn',
@@ -76,13 +71,25 @@ Module(body=[
       ctx=Load())],
     keywords=[],
     body=[
-      Expr(value=Str(s='Normalize an tensor image with mean and standard deviation.\n\n    Given mean: (R, G, B) and std: (R, G, B),\n    will normalize each channel of the torch.*Tensor, i.e.\n    channel = (channel - mean) / std\n\n    Args:\n        mean (sequence): Sequence of means for R, G, B channels respectively.\n        std (sequence): Sequence of standard deviations for R, G, B channels\n            respectively.\n    ')),
       FunctionDef(
         name='__init__',
         args=arguments(
-          args=[arg(
-            arg='self',
-            annotation=None)],
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='conv2d_0_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_0_kernel_size',
+              annotation=None),
+            arg(
+              arg='conv2d_0_padding',
+              annotation=None),
+            arg(
+              arg='conv2d_0_pad_mode',
+              annotation=None)],
           vararg=None,
           kwonlyargs=[],
           kw_defaults=[],
@@ -97,7 +104,7 @@ Module(body=[
                   ctx=Load()),
                 args=[
                   Name(
-                    id='DataNormTranspose',
+                    id='Module2',
                     ctx=Load()),
                   Name(
                     id='self',
@@ -112,108 +119,75 @@ Module(body=[
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='mean',
+              attr='conv2d_0',
               ctx=Store())],
             value=Call(
-              func=Name(
-                id='Tensor',
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
                 ctx=Load()),
-              args=[
-                Call(
-                  func=Attribute(
-                    value=Call(
-                      func=Attribute(
-                        value=Name(
-                          id='np',
-                          ctx=Load()),
-                        attr='array',
-                        ctx=Load()),
-                      args=[List(
-                        elts=[
-                          BinOp(
-                            left=Num(n=0.485),
-                            op=Mult(),
-                            right=Num(n=255)),
-                          BinOp(
-                            left=Num(n=0.456),
-                            op=Mult(),
-                            right=Num(n=255)),
-                          BinOp(
-                            left=Num(n=0.406),
-                            op=Mult(),
-                            right=Num(n=255))],
-                        ctx=Load())],
-                      keywords=[]),
-                    attr='reshape',
-                    ctx=Load()),
-                  args=[Tuple(
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_0_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='kernel_size',
+                  value=Name(
+                    id='conv2d_0_kernel_size',
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
                     elts=[
                       Num(n=1),
-                      Num(n=1),
-                      Num(n=1),
-                      Num(n=3)],
-                    ctx=Load())],
-                  keywords=[]),
-                Attribute(
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
                   value=Name(
-                    id='mstype',
-                    ctx=Load()),
-                  attr='float32',
-                  ctx=Load())],
-              keywords=[])),
+                    id='conv2d_0_padding',
+                    ctx=Load())),
+                keyword(
+                  arg='pad_mode',
+                  value=Name(
+                    id='conv2d_0_pad_mode',
+                    ctx=Load())),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
           Assign(
             targets=[Attribute(
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='std',
+              attr='relu_1',
               ctx=Store())],
             value=Call(
-              func=Name(
-                id='Tensor',
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='ReLU',
                 ctx=Load()),
-              args=[
-                Call(
-                  func=Attribute(
-                    value=Call(
-                      func=Attribute(
-                        value=Name(
-                          id='np',
-                          ctx=Load()),
-                        attr='array',
-                        ctx=Load()),
-                      args=[List(
-                        elts=[
-                          BinOp(
-                            left=Num(n=0.229),
-                            op=Mult(),
-                            right=Num(n=255)),
-                          BinOp(
-                            left=Num(n=0.224),
-                            op=Mult(),
-                            right=Num(n=255)),
-                          BinOp(
-                            left=Num(n=0.225),
-                            op=Mult(),
-                            right=Num(n=255))],
-                        ctx=Load())],
-                      keywords=[]),
-                    attr='reshape',
-                    ctx=Load()),
-                  args=[Tuple(
-                    elts=[
-                      Num(n=1),
-                      Num(n=1),
-                      Num(n=1),
-                      Num(n=3)],
-                    ctx=Load())],
-                  keywords=[]),
-                Attribute(
-                  value=Name(
-                    id='mstype',
-                    ctx=Load()),
-                  attr='float32',
-                  ctx=Load())],
+              args=[],
               keywords=[]))],
         decorator_list=[],
         returns=None),
@@ -235,52 +209,1317 @@ Module(body=[
         body=[
           Assign(
             targets=[Name(
-              id='x',
-              ctx=Store())],
-            value=BinOp(
-              left=BinOp(
-                left=Name(
-                  id='x',
-                  ctx=Load()),
-                op=Sub(),
-                right=Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='mean',
-                  ctx=Load())),
-              op=Div(),
-              right=Attribute(
-                value=Name(
-                  id='self',
-                  ctx=Load()),
-                attr='std',
-                ctx=Load()))),
-          Assign(
-            targets=[Name(
-              id='x',
+              id='opt_conv2d_0',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
-                  id='F',
+                  id='self',
                   ctx=Load()),
-                attr='transpose',
+                attr='conv2d_0',
+                ctx=Load()),
+              args=[Name(
+                id='x',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_relu_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='relu_1',
+                ctx=Load()),
+              args=[Name(
+                id='opt_conv2d_0',
+                ctx=Load())],
+              keywords=[])),
+          Return(value=Name(
+            id='opt_relu_1',
+            ctx=Load()))],
+        decorator_list=[],
+        returns=None)],
+    decorator_list=[]),
+  ClassDef(
+    name='Module2_copy',
+    bases=[Attribute(
+      value=Name(
+        id='nn',
+        ctx=Load()),
+      attr='Cell',
+      ctx=Load())],
+    keywords=[],
+    body=[
+      FunctionDef(
+        name='__init__',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='conv2d_0_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_0_kernel_size',
+              annotation=None),
+            arg(
+              arg='conv2d_0_padding',
+              annotation=None),
+            arg(
+              arg='conv2d_0_pad_mode',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Expr(value=Call(
+            func=Attribute(
+              value=Call(
+                func=Name(
+                  id='super',
+                  ctx=Load()),
+                args=[
+                  Name(
+                    id='Module2_copy',
+                    ctx=Load()),
+                  Name(
+                    id='self',
+                    ctx=Load())],
+                keywords=[]),
+              attr='__init__',
+              ctx=Load()),
+            args=[],
+            keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_0_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='kernel_size',
+                  value=Name(
+                    id='conv2d_0_kernel_size',
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Name(
+                    id='conv2d_0_padding',
+                    ctx=Load())),
+                keyword(
+                  arg='pad_mode',
+                  value=Name(
+                    id='conv2d_0_pad_mode',
+                    ctx=Load())),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_0_copy',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_0_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='kernel_size',
+                  value=Name(
+                    id='conv2d_0_kernel_size',
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Name(
+                    id='conv2d_0_padding',
+                    ctx=Load())),
+                keyword(
+                  arg='pad_mode',
+                  value=Name(
+                    id='conv2d_0_pad_mode',
+                    ctx=Load())),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='relu_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='ReLU',
+                ctx=Load()),
+              args=[],
+              keywords=[]))],
+        decorator_list=[],
+        returns=None),
+      FunctionDef(
+        name='construct',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='x',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_0',
+                ctx=Load()),
+              args=[Name(
+                id='x',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_0_copy',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_0_copy',
+                ctx=Load()),
+              args=[Name(
+                id='opt_conv2d_0',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_relu_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='relu_1',
+                ctx=Load()),
+              args=[Name(
+                id='opt_conv2d_0_copy',
+                ctx=Load())],
+              keywords=[])),
+          Return(value=Name(
+            id='opt_relu_1',
+            ctx=Load()))],
+        decorator_list=[],
+        returns=None)],
+    decorator_list=[]),
+  ClassDef(
+    name='Module0',
+    bases=[Attribute(
+      value=Name(
+        id='nn',
+        ctx=Load()),
+      attr='Cell',
+      ctx=Load())],
+    keywords=[],
+    body=[
+      FunctionDef(
+        name='__init__',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='batchnorm2d_0_num_features',
+              annotation=None),
+            arg(
+              arg='conv2d_2_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_2_out_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_2_stride',
+              annotation=None),
+            arg(
+              arg='conv2d_4_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_4_out_channels',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Expr(value=Call(
+            func=Attribute(
+              value=Call(
+                func=Name(
+                  id='super',
+                  ctx=Load()),
+                args=[
+                  Name(
+                    id='Module0',
+                    ctx=Load()),
+                  Name(
+                    id='self',
+                    ctx=Load())],
+                keywords=[]),
+              attr='__init__',
+              ctx=Load()),
+            args=[],
+            keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='batchnorm2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='BatchNorm2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='num_features',
+                  value=Name(
+                    id='batchnorm2d_0_num_features',
+                    ctx=Load())),
+                keyword(
+                  arg='eps',
+                  value=Num(n=9.999999974752427e-07)),
+                keyword(
+                  arg='momentum',
+                  value=Num(n=0.9900000095367432))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='relu_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='ReLU',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_2',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_2_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Name(
+                    id='conv2d_2_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Name(
+                    id='conv2d_2_stride',
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='relu_3',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='ReLU',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_4',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_4_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Name(
+                    id='conv2d_4_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=3),
+                      Num(n=3)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='pad')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='relu_5',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='ReLU',
+                ctx=Load()),
+              args=[],
+              keywords=[]))],
+        decorator_list=[],
+        returns=None),
+      FunctionDef(
+        name='construct',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='x',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Assign(
+            targets=[Name(
+              id='opt_batchnorm2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='batchnorm2d_0',
+                ctx=Load()),
+              args=[Name(
+                id='x',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_relu_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='relu_1',
+                ctx=Load()),
+              args=[Name(
+                id='opt_batchnorm2d_0',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_2',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_2',
+                ctx=Load()),
+              args=[Name(
+                id='opt_relu_1',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_relu_3',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='relu_3',
+                ctx=Load()),
+              args=[Name(
+                id='opt_conv2d_2',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_4',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_4',
+                ctx=Load()),
+              args=[Name(
+                id='opt_relu_3',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_relu_5',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='relu_5',
+                ctx=Load()),
+              args=[Name(
+                id='opt_conv2d_4',
+                ctx=Load())],
+              keywords=[])),
+          Return(value=Name(
+            id='opt_relu_5',
+            ctx=Load()))],
+        decorator_list=[],
+        returns=None)],
+    decorator_list=[]),
+  ClassDef(
+    name='Module5',
+    bases=[Attribute(
+      value=Name(
+        id='nn',
+        ctx=Load()),
+      attr='Cell',
+      ctx=Load())],
+    keywords=[],
+    body=[
+      FunctionDef(
+        name='__init__',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='conv2d_0_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_0_out_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_2_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_2_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_batchnorm2d_0_num_features',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_stride',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_4_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_4_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_1_batchnorm2d_0_num_features',
+              annotation=None),
+            arg(
+              arg='module0_1_conv2d_2_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_1_conv2d_2_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_1_conv2d_2_stride',
+              annotation=None),
+            arg(
+              arg='module0_1_conv2d_4_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_1_conv2d_4_out_channels',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Expr(value=Call(
+            func=Attribute(
+              value=Call(
+                func=Name(
+                  id='super',
+                  ctx=Load()),
+                args=[
+                  Name(
+                    id='Module5',
+                    ctx=Load()),
+                  Name(
+                    id='self',
+                    ctx=Load())],
+                keywords=[]),
+              attr='__init__',
+              ctx=Load()),
+            args=[],
+            keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module0_0',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module0',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='batchnorm2d_0_num_features',
+                  value=Name(
+                    id='module0_0_batchnorm2d_0_num_features',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Name(
+                    id='module0_0_conv2d_2_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Name(
+                    id='module0_0_conv2d_2_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_stride',
+                  value=Name(
+                    id='module0_0_conv2d_2_stride',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_in_channels',
+                  value=Name(
+                    id='module0_0_conv2d_4_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_out_channels',
+                  value=Name(
+                    id='module0_0_conv2d_4_out_channels',
+                    ctx=Load()))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_0_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Name(
+                    id='conv2d_0_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module0_1',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module0',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='batchnorm2d_0_num_features',
+                  value=Name(
+                    id='module0_1_batchnorm2d_0_num_features',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Name(
+                    id='module0_1_conv2d_2_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Name(
+                    id='module0_1_conv2d_2_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_stride',
+                  value=Name(
+                    id='module0_1_conv2d_2_stride',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_in_channels',
+                  value=Name(
+                    id='module0_1_conv2d_4_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_out_channels',
+                  value=Name(
+                    id='module0_1_conv2d_4_out_channels',
+                    ctx=Load()))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_2',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_2_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Name(
+                    id='conv2d_2_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='add',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Attribute(
+                  value=Name(
+                    id='mindspore',
+                    ctx=Load()),
+                  attr='ops',
+                  ctx=Load()),
+                attr='Add',
+                ctx=Load()),
+              args=[],
+              keywords=[]))],
+        decorator_list=[],
+        returns=None),
+      FunctionDef(
+        name='construct',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='x',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Assign(
+            targets=[Name(
+              id='module0_0_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module0_0',
+                ctx=Load()),
+              args=[Name(
+                id='x',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_0',
+                ctx=Load()),
+              args=[Name(
+                id='module0_0_opt',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_add_1',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='add',
                 ctx=Load()),
               args=[
                 Name(
                   id='x',
                   ctx=Load()),
-                Tuple(
-                  elts=[
-                    Num(n=0),
-                    Num(n=3),
-                    Num(n=1),
-                    Num(n=2)],
+                Name(
+                  id='opt_conv2d_0',
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='module0_1_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module0_1',
+                ctx=Load()),
+              args=[Name(
+                id='opt_add_1',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_2',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_2',
+                ctx=Load()),
+              args=[Name(
+                id='module0_1_opt',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_add_3',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='add',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='opt_add_1',
+                  ctx=Load()),
+                Name(
+                  id='opt_conv2d_2',
                   ctx=Load())],
               keywords=[])),
           Return(value=Name(
-            id='x',
+            id='opt_add_3',
+            ctx=Load()))],
+        decorator_list=[],
+        returns=None)],
+    decorator_list=[]),
+  ClassDef(
+    name='Module3',
+    bases=[Attribute(
+      value=Name(
+        id='nn',
+        ctx=Load()),
+      attr='Cell',
+      ctx=Load())],
+    keywords=[],
+    body=[
+      FunctionDef(
+        name='__init__',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='conv2d_0_in_channels',
+              annotation=None),
+            arg(
+              arg='conv2d_0_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_batchnorm2d_0_num_features',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_out_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_2_stride',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_4_in_channels',
+              annotation=None),
+            arg(
+              arg='module0_0_conv2d_4_out_channels',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Expr(value=Call(
+            func=Attribute(
+              value=Call(
+                func=Name(
+                  id='super',
+                  ctx=Load()),
+                args=[
+                  Name(
+                    id='Module3',
+                    ctx=Load()),
+                  Name(
+                    id='self',
+                    ctx=Load())],
+                keywords=[]),
+              attr='__init__',
+              ctx=Load()),
+            args=[],
+            keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module0_0',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module0',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='batchnorm2d_0_num_features',
+                  value=Name(
+                    id='module0_0_batchnorm2d_0_num_features',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Name(
+                    id='module0_0_conv2d_2_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Name(
+                    id='module0_0_conv2d_2_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_2_stride',
+                  value=Name(
+                    id='module0_0_conv2d_2_stride',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_in_channels',
+                  value=Name(
+                    id='module0_0_conv2d_4_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_4_out_channels',
+                  value=Name(
+                    id='module0_0_conv2d_4_out_channels',
+                    ctx=Load()))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Name(
+                    id='conv2d_0_in_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='out_channels',
+                  value=Name(
+                    id='conv2d_0_out_channels',
+                    ctx=Load())),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))]))],
+        decorator_list=[],
+        returns=None),
+      FunctionDef(
+        name='construct',
+        args=arguments(
+          args=[
+            arg(
+              arg='self',
+              annotation=None),
+            arg(
+              arg='x',
+              annotation=None)],
+          vararg=None,
+          kwonlyargs=[],
+          kw_defaults=[],
+          kwarg=None,
+          defaults=[]),
+        body=[
+          Assign(
+            targets=[Name(
+              id='module0_0_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module0_0',
+                ctx=Load()),
+              args=[Name(
+                id='x',
+                ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_conv2d_0',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='conv2d_0',
+                ctx=Load()),
+              args=[Name(
+                id='module0_0_opt',
+                ctx=Load())],
+              keywords=[])),
+          Return(value=Name(
+            id='opt_conv2d_0',
             ctx=Load()))],
         decorator_list=[],
         returns=None)],
@@ -295,39 +1534,17 @@ Module(body=[
       ctx=Load())],
     keywords=[],
     body=[
-      Expr(value=Str(s='\n    Alexnet\n    ')),
       FunctionDef(
         name='__init__',
         args=arguments(
-          args=[
-            arg(
-              arg='self',
-              annotation=None),
-            arg(
-              arg='num_classes',
-              annotation=None),
-            arg(
-              arg='channel',
-              annotation=None),
-            arg(
-              arg='phase',
-              annotation=None),
-            arg(
-              arg='include_top',
-              annotation=None),
-            arg(
-              arg='off_load',
-              annotation=None)],
+          args=[arg(
+            arg='self',
+            annotation=None)],
           vararg=None,
           kwonlyargs=[],
           kw_defaults=[],
           kwarg=None,
-          defaults=[
-            Num(n=10),
-            Num(n=3),
-            Str(s='train'),
-            NameConstant(value=True),
-            NameConstant(value=False)]),
+          defaults=[]),
         body=[
           Expr(value=Call(
             func=Attribute(
@@ -352,218 +1569,690 @@ Module(body=[
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='off_load',
-              ctx=Store())],
-            value=Name(
-              id='off_load',
-              ctx=Load())),
-          If(
-            test=Compare(
-              left=Attribute(
-                value=Name(
-                  id='self',
-                  ctx=Load()),
-                attr='off_load',
-                ctx=Load()),
-              ops=[Is()],
-              comparators=[NameConstant(value=True)]),
-            body=[Assign(
-              targets=[Attribute(
-                value=Name(
-                  id='self',
-                  ctx=Load()),
-                attr='data_trans',
-                ctx=Store())],
-              value=Call(
-                func=Name(
-                  id='DataNormTranspose',
-                  ctx=Load()),
-                args=[],
-                keywords=[]))],
-            orelse=[]),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='conv1',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='nn',
-                  ctx=Load()),
-                attr='Conv2d',
-                ctx=Load()),
-              args=[],
-              keywords=[
-                keyword(
-                  arg='in_channels',
-                  value=Name(
-                    id='channel',
-                    ctx=Load())),
-                keyword(
-                  arg='out_channels',
-                  value=Num(n=64)),
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=11)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=4)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='same')),
-                keyword(
-                  arg='has_bias',
-                  value=NameConstant(value=True))])),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='conv2',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='nn',
-                  ctx=Load()),
-                attr='Conv2d',
-                ctx=Load()),
-              args=[],
-              keywords=[
-                keyword(
-                  arg='in_channels',
-                  value=Num(n=64)),
-                keyword(
-                  arg='out_channels',
-                  value=Num(n=128)),
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=5)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=1)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='same')),
-                keyword(
-                  arg='has_bias',
-                  value=NameConstant(value=True))])),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='conv3',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='nn',
-                  ctx=Load()),
-                attr='Conv2d',
-                ctx=Load()),
-              args=[],
-              keywords=[
-                keyword(
-                  arg='in_channels',
-                  value=Num(n=128)),
-                keyword(
-                  arg='out_channels',
-                  value=Num(n=192)),
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=3)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=1)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='same')),
-                keyword(
-                  arg='has_bias',
-                  value=NameConstant(value=True))])),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='conv4',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='nn',
-                  ctx=Load()),
-                attr='Conv2d',
-                ctx=Load()),
-              args=[],
-              keywords=[
-                keyword(
-                  arg='in_channels',
-                  value=Num(n=192)),
-                keyword(
-                  arg='out_channels',
-                  value=Num(n=256)),
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=3)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=1)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='same')),
-                keyword(
-                  arg='has_bias',
-                  value=NameConstant(value=True))])),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='conv5',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='nn',
-                  ctx=Load()),
-                attr='Conv2d',
-                ctx=Load()),
-              args=[],
-              keywords=[
-                keyword(
-                  arg='in_channels',
-                  value=Num(n=256)),
-                keyword(
-                  arg='out_channels',
-                  value=Num(n=256)),
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=3)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=1)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='same')),
-                keyword(
-                  arg='has_bias',
-                  value=NameConstant(value=True))])),
-          Assign(
-            targets=[Attribute(
-              value=Name(
-                id='self',
-                ctx=Load()),
-              attr='relu',
+              attr='transpose_0',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='P',
+                  ctx=Load()),
+                attr='Transpose',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module2_0',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module2',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=3)),
+                keyword(
+                  arg='conv2d_0_kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=3),
+                      Num(n=3)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_padding',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_pad_mode',
+                  value=Str(s='pad'))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_3',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module2_1',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module2',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='conv2d_0_kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='conv2d_0_pad_mode',
+                  value=Str(s='valid'))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module2_1_copy',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module2_copy',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='conv2d_0_kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='conv2d_0_pad_mode',
+                  value=Str(s='valid'))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module2_2',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module2',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='conv2d_0_kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=3),
+                      Num(n=3)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_padding',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='conv2d_0_pad_mode',
+                  value=Str(s='pad'))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_8',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module5_0',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module5',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='conv2d_0_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_batchnorm2d_0_num_features',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='module0_0_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_0_conv2d_4_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='module0_0_conv2d_4_out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='module0_1_batchnorm2d_0_num_features',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_1_conv2d_2_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_1_conv2d_2_out_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='module0_1_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_1_conv2d_4_in_channels',
+                  value=Num(n=16)),
+                keyword(
+                  arg='module0_1_conv2d_4_out_channels',
+                  value=Num(n=16))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_26',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=2),
+                      Num(n=2)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module3_0',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module3',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='conv2d_0_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_batchnorm2d_0_num_features',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=2),
+                      Num(n=2)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_0_conv2d_4_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_4_out_channels',
+                  value=Num(n=64))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module5_1',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module5',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='conv2d_0_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_batchnorm2d_0_num_features',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_0_conv2d_4_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_0_conv2d_4_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_1_batchnorm2d_0_num_features',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_1_conv2d_2_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_1_conv2d_2_out_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_1_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_1_conv2d_4_in_channels',
+                  value=Num(n=64)),
+                keyword(
+                  arg='module0_1_conv2d_4_out_channels',
+                  value=Num(n=64))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='conv2d_51',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Conv2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='out_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=2),
+                      Num(n=2)],
+                    ctx=Load())),
+                keyword(
+                  arg='padding',
+                  value=Num(n=0)),
+                keyword(
+                  arg='pad_mode',
+                  value=Str(s='valid')),
+                keyword(
+                  arg='dilation',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='group',
+                  value=Num(n=1)),
+                keyword(
+                  arg='has_bias',
+                  value=NameConstant(value=True))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module3_1',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module3',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='conv2d_0_out_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_0_batchnorm2d_0_num_features',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=2),
+                      Num(n=2)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_0_conv2d_4_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_4_out_channels',
+                  value=Num(n=128))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='module5_2',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Module5',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='conv2d_0_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='conv2d_0_out_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='conv2d_2_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='conv2d_2_out_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_0_batchnorm2d_0_num_features',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_0_conv2d_2_in_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_0_conv2d_2_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_0_conv2d_4_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_0_conv2d_4_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_1_batchnorm2d_0_num_features',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_1_conv2d_2_in_channels',
+                  value=Num(n=256)),
+                keyword(
+                  arg='module0_1_conv2d_2_out_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_1_conv2d_2_stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=1),
+                      Num(n=1)],
+                    ctx=Load())),
+                keyword(
+                  arg='module0_1_conv2d_4_in_channels',
+                  value=Num(n=128)),
+                keyword(
+                  arg='module0_1_conv2d_4_out_channels',
+                  value=Num(n=128))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='batchnorm2d_76',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='BatchNorm2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='num_features',
+                  value=Num(n=256)),
+                keyword(
+                  arg='eps',
+                  value=Num(n=9.999999974752427e-07)),
+                keyword(
+                  arg='momentum',
+                  value=Num(n=0.9900000095367432))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='relu_77',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
                   ctx=Load()),
                 attr='ReLU',
                 ctx=Load()),
@@ -574,180 +2263,257 @@ Module(body=[
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='max_pool2d',
+              attr='pad_avgpool2d_78',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='nn',
                   ctx=Load()),
-                attr='MaxPool2d',
+                attr='Pad',
                 ctx=Load()),
               args=[],
-              keywords=[
-                keyword(
-                  arg='kernel_size',
-                  value=Num(n=3)),
-                keyword(
-                  arg='stride',
-                  value=Num(n=2)),
-                keyword(
-                  arg='pad_mode',
-                  value=Str(s='valid'))])),
+              keywords=[keyword(
+                arg='paddings',
+                value=Tuple(
+                  elts=[
+                    Tuple(
+                      elts=[
+                        Num(n=0),
+                        Num(n=0)],
+                      ctx=Load()),
+                    Tuple(
+                      elts=[
+                        Num(n=0),
+                        Num(n=0)],
+                      ctx=Load()),
+                    Tuple(
+                      elts=[
+                        Num(n=0),
+                        Num(n=0)],
+                      ctx=Load()),
+                    Tuple(
+                      elts=[
+                        Num(n=0),
+                        Num(n=0)],
+                      ctx=Load())],
+                  ctx=Load()))])),
           Assign(
             targets=[Attribute(
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='include_top',
+              attr='avgpool2d_78',
               ctx=Store())],
-            value=Name(
-              id='include_top',
-              ctx=Load())),
-          If(
-            test=Attribute(
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='AvgPool2d',
+                ctx=Load()),
+              args=[],
+              keywords=[
+                keyword(
+                  arg='kernel_size',
+                  value=Tuple(
+                    elts=[
+                      Num(n=8),
+                      Num(n=8)],
+                    ctx=Load())),
+                keyword(
+                  arg='stride',
+                  value=Tuple(
+                    elts=[
+                      Num(n=8),
+                      Num(n=8)],
+                    ctx=Load()))])),
+          Assign(
+            targets=[Attribute(
               value=Name(
                 id='self',
                 ctx=Load()),
-              attr='include_top',
-              ctx=Load()),
-            body=[
-              Assign(
-                targets=[Name(
-                  id='dropout_ratio',
-                  ctx=Store())],
-                value=Num(n=0.65)),
-              If(
-                test=Compare(
-                  left=Name(
-                    id='phase',
-                    ctx=Load()),
-                  ops=[Eq()],
-                  comparators=[Str(s='test')]),
-                body=[Assign(
-                  targets=[Name(
-                    id='dropout_ratio',
-                    ctx=Store())],
-                  value=Num(n=1.0))],
-                orelse=[]),
-              Assign(
-                targets=[Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='flatten',
-                  ctx=Store())],
-                value=Call(
+              attr='transpose_79',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='P',
+                  ctx=Load()),
+                attr='Transpose',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='flatten_80',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Flatten',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='matmul_81_w',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Parameter',
+                ctx=Load()),
+              args=[Call(
+                func=Name(
+                  id='Tensor',
+                  ctx=Load()),
+                args=[Call(
                   func=Attribute(
+                    value=Call(
+                      func=Attribute(
+                        value=Attribute(
+                          value=Name(
+                            id='np',
+                            ctx=Load()),
+                          attr='random',
+                          ctx=Load()),
+                        attr='uniform',
+                        ctx=Load()),
+                      args=[
+                        Num(n=0),
+                        Num(n=1),
+                        Tuple(
+                          elts=[
+                            Num(n=256),
+                            Num(n=100)],
+                          ctx=Load())],
+                      keywords=[]),
+                    attr='astype',
+                    ctx=Load()),
+                  args=[Attribute(
                     value=Name(
-                      id='nn',
+                      id='np',
                       ctx=Load()),
-                    attr='Flatten',
-                    ctx=Load()),
-                  args=[],
-                  keywords=[])),
-              Assign(
-                targets=[Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='fc1',
-                  ctx=Store())],
-                value=Call(
-                  func=Attribute(
-                    value=Name(
-                      id='nn',
-                      ctx=Load()),
-                    attr='Dense',
-                    ctx=Load()),
-                  args=[],
-                  keywords=[
-                    keyword(
-                      arg='in_channels',
-                      value=BinOp(
-                        left=BinOp(
-                          left=Num(n=6),
-                          op=Mult(),
-                          right=Num(n=6)),
-                        op=Mult(),
-                        right=Num(n=256))),
-                    keyword(
-                      arg='out_channels',
-                      value=Num(n=4096)),
-                    keyword(
-                      arg='has_bias',
-                      value=NameConstant(value=True))])),
-              Assign(
-                targets=[Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='fc2',
-                  ctx=Store())],
-                value=Call(
-                  func=Attribute(
-                    value=Name(
-                      id='nn',
-                      ctx=Load()),
-                    attr='Dense',
-                    ctx=Load()),
-                  args=[],
-                  keywords=[
-                    keyword(
-                      arg='in_channels',
-                      value=Num(n=4096)),
-                    keyword(
-                      arg='out_channels',
-                      value=Num(n=4096)),
-                    keyword(
-                      arg='has_bias',
-                      value=NameConstant(value=True))])),
-              Assign(
-                targets=[Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='fc3',
-                  ctx=Store())],
-                value=Call(
-                  func=Attribute(
-                    value=Name(
-                      id='nn',
-                      ctx=Load()),
-                    attr='Dense',
-                    ctx=Load()),
-                  args=[],
-                  keywords=[
-                    keyword(
-                      arg='in_channels',
-                      value=Num(n=4096)),
-                    keyword(
-                      arg='out_channels',
-                      value=Name(
-                        id='num_classes',
-                        ctx=Load())),
-                    keyword(
-                      arg='has_bias',
-                      value=NameConstant(value=True))])),
-              Assign(
-                targets=[Attribute(
-                  value=Name(
-                    id='self',
-                    ctx=Load()),
-                  attr='dropout',
-                  ctx=Store())],
-                value=Call(
-                  func=Attribute(
-                    value=Name(
-                      id='nn',
-                      ctx=Load()),
-                    attr='Dropout',
-                    ctx=Load()),
-                  args=[Name(
-                    id='dropout_ratio',
+                    attr='float32',
                     ctx=Load())],
-                  keywords=[]))],
-            orelse=[])],
+                  keywords=[])],
+                keywords=[])],
+              keywords=[keyword(
+                arg='name',
+                value=NameConstant(value=None))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='add_82_bias',
+              ctx=Store())],
+            value=Call(
+              func=Name(
+                id='Parameter',
+                ctx=Load()),
+              args=[Call(
+                func=Name(
+                  id='Tensor',
+                  ctx=Load()),
+                args=[Call(
+                  func=Attribute(
+                    value=Call(
+                      func=Attribute(
+                        value=Attribute(
+                          value=Name(
+                            id='np',
+                            ctx=Load()),
+                          attr='random',
+                          ctx=Load()),
+                        attr='uniform',
+                        ctx=Load()),
+                      args=[
+                        Num(n=0),
+                        Num(n=1),
+                        Tuple(
+                          elts=[Num(n=100)],
+                          ctx=Load())],
+                      keywords=[]),
+                    attr='astype',
+                    ctx=Load()),
+                  args=[Attribute(
+                    value=Name(
+                      id='np',
+                      ctx=Load()),
+                    attr='float32',
+                    ctx=Load())],
+                  keywords=[])],
+                keywords=[])],
+              keywords=[keyword(
+                arg='name',
+                value=NameConstant(value=None))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='softmax_83',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='nn',
+                  ctx=Load()),
+                attr='Softmax',
+                ctx=Load()),
+              args=[],
+              keywords=[keyword(
+                arg='axis',
+                value=UnaryOp(
+                  op=USub(),
+                  operand=Num(n=1)))])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='add',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Attribute(
+                  value=Name(
+                    id='mindspore',
+                    ctx=Load()),
+                  attr='ops',
+                  ctx=Load()),
+                attr='Add',
+                ctx=Load()),
+              args=[],
+              keywords=[])),
+          Assign(
+            targets=[Attribute(
+              value=Name(
+                id='self',
+                ctx=Load()),
+              attr='matmul',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Attribute(
+                  value=Name(
+                    id='mindspore',
+                    ctx=Load()),
+                  attr='ops',
+                  ctx=Load()),
+                attr='MatMul',
+                ctx=Load()),
+              args=[],
+              keywords=[]))],
         decorator_list=[],
         returns=None),
       FunctionDef(
@@ -758,7 +2524,7 @@ Module(body=[
               arg='self',
               annotation=None),
             arg(
-              arg='x',
+              arg='input_1',
               annotation=None)],
           vararg=None,
           kwonlyargs=[],
@@ -766,337 +2532,418 @@ Module(body=[
           kwarg=None,
           defaults=[]),
         body=[
-          Expr(value=Str(s='define network')),
           Assign(
             targets=[Name(
-              id='conv1_opt',
+              id='opt_transpose_0',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='conv1',
+                attr='transpose_0',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='input_1',
+                  ctx=Load()),
+                Tuple(
+                  elts=[
+                    Num(n=0),
+                    Num(n=3),
+                    Num(n=1),
+                    Num(n=2)],
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='module2_0_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module2_0',
                 ctx=Load()),
               args=[Name(
-                id='x',
+                id='opt_transpose_0',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_1_opt',
+              id='opt_conv2d_3',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='conv2d_3',
                 ctx=Load()),
               args=[Name(
-                id='conv1_opt',
+                id='module2_0_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='max_pool2d_1_opt',
+              id='module2_1_opt',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='max_pool2d',
+                attr='module2_1_copy',
                 ctx=Load()),
               args=[Name(
-                id='relu_1_opt',
+                id='module2_0_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='conv2_opt',
+              id='module2_2_opt',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='conv2',
+                attr='module2_2',
                 ctx=Load()),
               args=[Name(
-                id='max_pool2d_1_opt',
+                id='module2_1_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_2_opt',
+              id='opt_conv2d_8',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='conv2d_8',
                 ctx=Load()),
               args=[Name(
-                id='conv2_opt',
+                id='module2_2_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='max_pool2d_2_opt',
+              id='opt_add_9',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='max_pool2d',
+                attr='add',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='opt_conv2d_3',
+                  ctx=Load()),
+                Name(
+                  id='opt_conv2d_8',
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='module5_0_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module5_0',
                 ctx=Load()),
               args=[Name(
-                id='relu_2_opt',
+                id='opt_add_9',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='conv3_opt',
+              id='opt_conv2d_26',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='conv3',
+                attr='conv2d_26',
                 ctx=Load()),
               args=[Name(
-                id='max_pool2d_2_opt',
+                id='module5_0_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_3_opt',
+              id='module3_0_opt',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='module3_0',
                 ctx=Load()),
               args=[Name(
-                id='conv3_opt',
+                id='module5_0_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='conv4_opt',
+              id='opt_add_34',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='conv4',
+                attr='add',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='opt_conv2d_26',
+                  ctx=Load()),
+                Name(
+                  id='module3_0_opt',
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='module5_1_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module5_1',
                 ctx=Load()),
               args=[Name(
-                id='relu_3_opt',
+                id='opt_add_34',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_4_opt',
+              id='opt_conv2d_51',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='conv2d_51',
                 ctx=Load()),
               args=[Name(
-                id='conv4_opt',
+                id='module5_1_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='conv5_opt',
+              id='module3_1_opt',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='conv5',
+                attr='module3_1',
                 ctx=Load()),
               args=[Name(
-                id='relu_4_opt',
+                id='module5_1_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_5_opt',
+              id='opt_add_59',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='add',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='opt_conv2d_51',
+                  ctx=Load()),
+                Name(
+                  id='module3_1_opt',
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='module5_2_opt',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='module5_2',
                 ctx=Load()),
               args=[Name(
-                id='conv5_opt',
+                id='opt_add_59',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='max_pool2d_3_opt',
+              id='opt_batchnorm2d_76',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='max_pool2d',
+                attr='batchnorm2d_76',
                 ctx=Load()),
               args=[Name(
-                id='relu_5_opt',
-                ctx=Load())],
-              keywords=[])),
-          If(
-            test=UnaryOp(
-              op=Not(),
-              operand=Attribute(
-                value=Name(
-                  id='self',
-                  ctx=Load()),
-                attr='include_top',
-                ctx=Load())),
-            body=[Return(value=Name(
-              id='max_pool2d_3_opt',
-              ctx=Load()))],
-            orelse=[]),
-          Assign(
-            targets=[Name(
-              id='flatten_opt',
-              ctx=Store())],
-            value=Call(
-              func=Attribute(
-                value=Name(
-                  id='self',
-                  ctx=Load()),
-                attr='flatten',
-                ctx=Load()),
-              args=[Name(
-                id='max_pool2d_3_opt',
+                id='module5_2_opt',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='fc1_opt',
+              id='opt_relu_77',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='fc1',
+                attr='relu_77',
                 ctx=Load()),
               args=[Name(
-                id='flatten_opt',
+                id='opt_batchnorm2d_76',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_6_opt',
+              id='opt_avgpool2d_78',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='pad_avgpool2d_78',
                 ctx=Load()),
               args=[Name(
-                id='fc1_opt',
+                id='opt_relu_77',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='dropout_1_opt',
+              id='opt_avgpool2d_78',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='dropout',
+                attr='avgpool2d_78',
                 ctx=Load()),
               args=[Name(
-                id='relu_6_opt',
+                id='opt_avgpool2d_78',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='fc2_opt',
+              id='opt_transpose_79',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='fc2',
+                attr='transpose_79',
+                ctx=Load()),
+              args=[
+                Name(
+                  id='opt_avgpool2d_78',
+                  ctx=Load()),
+                Tuple(
+                  elts=[
+                    Num(n=0),
+                    Num(n=2),
+                    Num(n=3),
+                    Num(n=1)],
+                  ctx=Load())],
+              keywords=[])),
+          Assign(
+            targets=[Name(
+              id='opt_flatten_80',
+              ctx=Store())],
+            value=Call(
+              func=Attribute(
+                value=Name(
+                  id='self',
+                  ctx=Load()),
+                attr='flatten_80',
                 ctx=Load()),
               args=[Name(
-                id='dropout_1_opt',
+                id='opt_transpose_79',
                 ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='relu_7_opt',
+              id='opt_matmul_81',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='relu',
+                attr='matmul',
                 ctx=Load()),
-              args=[Name(
-                id='fc2_opt',
-                ctx=Load())],
+              args=[
+                Name(
+                  id='opt_flatten_80',
+                  ctx=Load()),
+                Attribute(
+                  value=Name(
+                    id='self',
+                    ctx=Load()),
+                  attr='matmul_81_w',
+                  ctx=Load())],
               keywords=[])),
           Assign(
             targets=[Name(
-              id='dropout_2_opt',
+              id='opt_add_82',
               ctx=Store())],
-            value=Call(
-              func=Attribute(
+            value=BinOp(
+              left=Name(
+                id='opt_matmul_81',
+                ctx=Load()),
+              op=Add(),
+              right=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='dropout',
-                ctx=Load()),
-              args=[Name(
-                id='relu_7_opt',
-                ctx=Load())],
-              keywords=[])),
+                attr='add_82_bias',
+                ctx=Load()))),
           Assign(
             targets=[Name(
-              id='fc3_opt',
+              id='opt_softmax_83',
               ctx=Store())],
             value=Call(
               func=Attribute(
                 value=Name(
                   id='self',
                   ctx=Load()),
-                attr='fc3',
+                attr='softmax_83',
                 ctx=Load()),
               args=[Name(
-                id='dropout_2_opt',
+                id='opt_add_82',
                 ctx=Load())],
               keywords=[])),
           Return(value=Name(
-            id='fc3_opt',
+            id='opt_softmax_83',
             ctx=Load()))],
         decorator_list=[],
         returns=None)],

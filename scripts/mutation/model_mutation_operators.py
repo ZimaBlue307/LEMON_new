@@ -198,13 +198,12 @@ def _shuffle_dense(layer, mutate_ratio):
 def _LA_model_scan(irtable, model, new_layers, mutated_layer_indices = None):
     from lemon_tree.mutation_utils_mindspore import LayerUtils
     layer_utils = LayerUtils()
-    positions_to_add = np.arange(len(irtable) - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(positions_to_add, len(irtable))
+    nodeList = irtable.nodeList
+    positions_to_add = np.arange(len(nodeList) - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len(nodeList))
     insertion_points = {}
     available_new_layers = [layer for layer in
                             layer_utils.available_model_level_layers.keys()] if new_layers is None else new_layers
-    nodeList = irtable.nodeList
-    positions_to_add = np.arange(len(nodeList) - 1)
     for node_index in nodeList.keys():
         node = nodeList[node_index]
         operator_name = node.operator_name
@@ -224,39 +223,26 @@ def _LA_model_scan(irtable, model, new_layers, mutated_layer_indices = None):
     return insertion_points
 
 
-def _MLA_model_scan(model, new_layers, mapping_index_node, mapping_node_parent, mutated_layer_indices=None):
+def _MLA_model_scan(irtable, model, new_layers, mutated_layer_indices=None):
     layer_matching = LayerMatching()# need to change file LayerMatching
-    #layers = model.layers
-    model_tree = mindspore.rewrite.SymbolTree.create(model)
-    len_tree = 0
-    for node in model_tree.nodes():
-        len_tree = utils.ToolUtils.judge_node(model_tree, node, len_tree, mapping_index_node, mapping_node_parent)
-    
-    
-    # new layers can never be added after the last layer
-    positions_to_add = np.arange(len_tree - 1) if mutated_layer_indices is None else mutated_layer_indices
-    _assert_indices(positions_to_add, len_tree)
-
+    nodeList = irtable.nodeList
+    positions_to_add = np.arange(len(nodeList) - 1) if mutated_layer_indices is None else mutated_layer_indices
+    _assert_indices(positions_to_add, len(nodeList))
     insertion_points = {}
     available_new_layers = [layer for layer in layer_matching.layer_concats.keys()] if new_layers is None else new_layers
-    
-    count = 0
-    while count < len_tree:
-        tmp_node = mapping_index_node[count]
-        tmp_instance = tmp_node.get_instance()
-        if is_layer_softmax(tmp_instance): 
-            break 
-        if count in positions_to_add:
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        operator_name = node.operator_name
+        output_shape = node.shape
+        if 'softmax' in operator_name.lower():
+            break
+        if node_index in positions_to_add:
             for available_new_layer in available_new_layers:
-                # print('{} test shape: {} as list: {}'.format(available_new_layer, layer.output.shape,
-                #                                              layer.output.shape.as_list()))
-                if layer_matching.input_legal[available_new_layer](tmp_node.output.shape):
-                    #判断node的输入shape是否合法,目前tmp_node.output.shape还无法得到；
-                    if count not in insertion_points.keys():
-                        insertion_points[count] = [available_new_layer]
+                if layer_matching.input_legal[available_new_layer](output_shape):
+                    if node_index not in insertion_points.keys():
+                        insertion_points[node_index] = [available_new_layer]
                     else:
-                        insertion_points[count].append(available_new_layer)
-        count += 1
+                        insertion_points[node_index].append(available_new_layer)
     return insertion_points
 
 

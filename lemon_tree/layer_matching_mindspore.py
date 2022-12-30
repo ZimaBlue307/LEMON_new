@@ -2,11 +2,34 @@
 #layer_matching in lemon_new
 import os
 import warnings
+import mindspore
+from mindspore import nn
 # warnings.filterwarnings("ignore")
 # warnings.filterwarnings("ignore")
 # os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # 只显示 warning 和 Error
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+# class Reshape(nn.Cell):
+#     def __init__(self, out_shape):
+#         super(Reshape, self).__init__()
+#         self.out_shape = out_shape
+#         self.reshape = mindspore.ops.Reshape()
+#
+#     def construct(self, x):
+#         result = self.reshape(x, self.out_shape)
+#         return result
+
+class ResizeBilinear(nn.Cell):
+    def __init__(self, out_shape):
+        super(ResizeBilinear, self).__init__()
+        self.out_shape = out_shape
+        self.ResizeBilinear = mindspore.nn.ResizeBilinear()
+
+    def construct(self, x):
+        result = self.ResizeBilinear(x, self.out_shape)
+        return result
+
 
 class LayerMatching:
     concat_size_limit = 1e4
@@ -15,451 +38,535 @@ class LayerMatching:
         self.layers = {}
         self.constraints = {}
 
-        self.layers['flatten'] = LayerMatching.flatten
-        self.constraints['flatten'] = LayerMatching.flatten_constraints
+        # self.layers['flatten'] = LayerMatching.flatten
+        # self.constraints['flatten'] = LayerMatching.flatten_constraints
 
         self.layer_concats = {}
         self.input_legal = {}
         self.layer_concats['flatten'] = LayerMatching.flatten_dense
         self.input_legal['flatten'] = LayerMatching.flatten_dense_input_legal
-        self.layer_concats['repeat_vector'] = LayerMatching.repeat_vector_dense
-        self.input_legal['repeat_vector'] = LayerMatching.repeat_vector_dense_input_legal
-        self.layer_concats['cropping1d'] = LayerMatching.cropping1d_dense
-        self.input_legal['cropping1d'] = LayerMatching.cropping1d_dense_input_legal
-        self.layer_concats['cropping2d'] = LayerMatching.cropping2d_dense
-        self.input_legal['cropping2d'] = LayerMatching.cropping2d_dense_input_legal
-        self.layer_concats['cropping3d'] = LayerMatching.cropping3d_dense
-        self.input_legal['cropping3d'] = LayerMatching.cropping3d_dense_input_legal
-        self.layer_concats['upsampling_1d'] = LayerMatching.upsampling_1d_dense
-        self.input_legal['upsampling_1d'] = LayerMatching.upsampling_1d_dense_input_legal
-        self.layer_concats['upsampling_2d'] = LayerMatching.upsampling_2d_dense
-        self.input_legal['upsampling_2d'] = LayerMatching.upsampling_2d_dense_input_legal
-        self.layer_concats['upsampling_3d'] = LayerMatching.upsampling_3d_dense
-        self.input_legal['upsampling_3d'] = LayerMatching.upsampling_3d_dense_input_legal
-        self.layer_concats['zeropadding_1d'] = LayerMatching.zeropadding_1d_conv
-        self.input_legal['zeropadding_1d'] = LayerMatching.zeropadding_1d_conv_input_legal
-        self.layer_concats['zeropadding_2d'] = LayerMatching.zeropadding_2d_conv
-        self.input_legal['zeropadding_2d'] = LayerMatching.zeropadding_2d_conv_input_legal
-        self.layer_concats['zeropadding_3d'] = LayerMatching.zeropadding_3d_conv
-        self.input_legal['zeropadding_3d'] = LayerMatching.zeropadding_3d_conv_input_legal
-        self.layer_concats['global_max_pooling_1d'] = LayerMatching.global_max_pooling_1d_dense
-        self.input_legal['global_max_pooling_1d'] = LayerMatching.global_pooling_1d_dense_input_legal
-        self.layer_concats['global_average_pooling_1d'] = LayerMatching.global_average_pooling_1d_dense
-        self.input_legal['global_average_pooling_1d'] = LayerMatching.global_pooling_1d_dense_input_legal
-        self.layer_concats['global_max_pooling_2d'] = LayerMatching.global_max_pooling_2d_dense
-        self.input_legal['global_max_pooling_2d'] = LayerMatching.global_pooling_2d_dense_input_legal
-        self.layer_concats['global_average_pooling_2d'] = LayerMatching.global_average_pooling_2d_dense
-        self.input_legal['global_average_pooling_2d'] = LayerMatching.global_pooling_2d_dense_input_legal
-        self.layer_concats['global_max_pooling_3d'] = LayerMatching.global_max_pooling_3d_dense
-        self.input_legal['global_max_pooling_3d'] = LayerMatching.global_pooling_3d_dense_input_legal
-        self.layer_concats['global_average_pooling_3d'] = LayerMatching.global_average_pooling_3d_dense
-        self.input_legal['global_average_pooling_3d'] = LayerMatching.global_pooling_3d_dense_input_legal
-        self.layer_concats['simple_rnn'] = LayerMatching.simple_rnn_dense
-        self.input_legal['simple_rnn'] = LayerMatching.simple_rnn_dense_input_legal
-        self.layer_concats['gru'] = LayerMatching.gru_dense
-        self.input_legal['gru'] = LayerMatching.gru_dense_input_legal
-        self.layer_concats['lstm'] = LayerMatching.lstm_dense
-        self.input_legal['lstm'] = LayerMatching.lstm_dense_input_legal
-        self.layer_concats['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense
-        self.input_legal['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense_input_legal
+        # self.layer_concats['cropping1d'] = LayerMatching.cropping1d_dense
+        # self.input_legal['cropping1d'] = LayerMatching.cropping1d_dense_input_legal
+        # self.layer_concats['cropping2d'] = LayerMatching.cropping2d_dense
+        # self.input_legal['cropping2d'] = LayerMatching.cropping2d_dense_input_legal
+        # self.layer_concats['cropping3d'] = LayerMatching.cropping3d_dense
+        # self.input_legal['cropping3d'] = LayerMatching.cropping3d_dense_input_legal
+        # self.layer_concats['upsampling_1d'] = LayerMatching.upsampling_1d_dense
+        # self.input_legal['upsampling_1d'] = LayerMatching.upsampling_1d_dense_input_legal
+        # self.layer_concats['upsampling_2d'] = LayerMatching.upsampling_2d_dense
+        # self.input_legal['upsampling_2d'] = LayerMatching.upsampling_2d_dense_input_legal
+        # self.layer_concats['upsampling_3d'] = LayerMatching.upsampling_3d_dense
+        # self.input_legal['upsampling_3d'] = LayerMatching.upsampling_3d_dense_input_legal
+        self.layer_concats['ConstantPad1d'] = LayerMatching.ConstantPad1d
+        self.input_legal['ConstantPad1d'] = LayerMatching.ConstantPad1d_input_legal
+        self.layer_concats['ConstantPad2d'] = LayerMatching.ConstantPad2d
+        self.input_legal['ConstantPad2d'] = LayerMatching.ConstantPad2d_input_legal
+        self.layer_concats['ConstantPad3d'] = LayerMatching.ConstantPad3d
+        self.input_legal['ConstantPad3d'] = LayerMatching.ConstantPad3d_input_legal
+        self.layer_concats['AdaptiveAvgPool1d'] = LayerMatching.AdaptiveAvgPool1d
+        self.input_legal['AdaptiveAvgPool1d'] = LayerMatching.AdaptiveAvgPool1d_input_legal
+        self.layer_concats['AdaptiveMaxPool1d'] = LayerMatching.AdaptiveMaxPool1d
+        self.input_legal['AdaptiveMaxPool1d'] = LayerMatching.AdaptiveMaxPool1d_input_legal
+        self.layer_concats['AdaptiveMaxPool2d'] = LayerMatching.AdaptiveMaxPool2d
+        self.input_legal['AdaptiveMaxPool2d'] = LayerMatching.AdaptiveMaxPool2d_input_legal
+        self.layer_concats['AdaptiveMaxPool3d'] = LayerMatching.AdaptiveMaxPool3d
+        self.input_legal['AdaptiveMaxPool3d'] = LayerMatching.AdaptiveMaxPool3d_input_legal
+        self.layer_concats['ReflectionPad1d'] = LayerMatching.ReflectionPad1d
+        self.input_legal['ReflectionPad1d'] = LayerMatching.ReflectionPad1d_input_legal
+        self.layer_concats['ReflectionPad2d'] = LayerMatching.ReflectionPad2d
+        self.input_legal['ReflectionPad2d'] = LayerMatching.ReflectionPad2d_input_legal
+        self.layer_concats['ReflectionPad3d'] = LayerMatching.ReflectionPad3d
+        self.input_legal['ReflectionPad3d'] = LayerMatching.ReflectionPad3d_input_legal
+
+        # self.layer_concats['global_max_pooling_1d'] = LayerMatching.global_max_pooling_1d_dense
+        # self.input_legal['global_max_pooling_1d'] = LayerMatching.global_pooling_1d_dense_input_legal
+        # self.layer_concats['global_average_pooling_1d'] = LayerMatching.global_average_pooling_1d_dense
+        # self.input_legal['global_average_pooling_1d'] = LayerMatching.global_pooling_1d_dense_input_legal
+        # self.layer_concats['global_max_pooling_2d'] = LayerMatching.global_max_pooling_2d_dense
+        # self.input_legal['global_max_pooling_2d'] = LayerMatching.global_pooling_2d_dense_input_legal
+        # self.layer_concats['global_average_pooling_2d'] = LayerMatching.global_average_pooling_2d_dense
+        # self.input_legal['global_average_pooling_2d'] = LayerMatching.global_pooling_2d_dense_input_legal
+        # self.layer_concats['global_max_pooling_3d'] = LayerMatching.global_max_pooling_3d_dense
+        # self.input_legal['global_max_pooling_3d'] = LayerMatching.global_pooling_3d_dense_input_legal
+        # self.layer_concats['global_average_pooling_3d'] = LayerMatching.global_average_pooling_3d_dense
+        # self.input_legal['global_average_pooling_3d'] = LayerMatching.global_pooling_3d_dense_input_legal
+        # self.layer_concats['simple_rnn'] = LayerMatching.simple_rnn_dense
+        # self.input_legal['simple_rnn'] = LayerMatching.simple_rnn_dense_input_legal
+        # self.layer_concats['gru'] = LayerMatching.gru_dense
+        # self.input_legal['gru'] = LayerMatching.gru_dense_input_legal
+        # self.layer_concats['lstm'] = LayerMatching.lstm_dense
+        # self.input_legal['lstm'] = LayerMatching.lstm_dense_input_legal
+        # self.layer_concats['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense
+        # self.input_legal['conv_lstm_2d'] = LayerMatching.conv_lstm_2d_dense_input_legal
 
     #done
-    @staticmethod
-    def flatten(input_shape):
-        #import keras
-        #return keras.layers.Flatten()
-        import mindspore
-        return mindspore.nn.Flatten()
+    # @staticmethod
+    # def flatten(input_shape):
+    #     #import keras
+    #     #return keras.layers.Flatten()
+    #     return mindspore.nn.Flatten()
         
-    #done
-    @staticmethod
-    def flatten_constraints(input_shape):
-        #input_shape = input_shape.as_list()
-        input_shape = list(input_shape)
-        input_shape_len = len(input_shape)
-        constraints = []
-        if input_shape_len < 2:
-            return None
-        constraints = []
-        dim_size = 1
-        for i in range(input_shape_len):
-            if i == 0:
-                continue
-            constraints.append('= input_{} {}'.format(i, input_shape[i]))
-            dim_size *= input_shape[i]
-        constraint_str = '= output_{} {}'.format(1, dim_size)
-        constraints.append(constraint_str)
-        return constraints
+    # #done
+    # @staticmethod
+    # def flatten_constraints(input_shape):
+    #     #input_shape = input_shape.as_list()
+    #     input_shape = list(input_shape)
+    #     input_shape_len = len(input_shape)
+    #     constraints = []
+    #     if input_shape_len < 2:
+    #         return None
+    #     constraints = []
+    #     dim_size = 1
+    #     for i in range(input_shape_len):
+    #         if i == 0:
+    #             continue
+    #         constraints.append('= input_{} {}'.format(i, input_shape[i]))
+    #         dim_size *= input_shape[i]
+    #     constraint_str = '= output_{} {}'.format(1, dim_size)
+    #     constraints.append(constraint_str)
+    #     return constraints
 
 
     #不知道怎么实现reshape层
     @staticmethod
     def flatten_dense(input_shape):
-        import mindspore
-        import keras
-        layer_concat = []
-        layer_concat.append(mindspore.nn.Flatten())
-        units = 1
-        for i in range(len(input_shape)):
-            if i == 0:
-                continue #jump batch_size
-            units *= input_shape[i]
-        #different from keras.layers.Dense(units), units:输出空间维度
-        #mindspore.nn.Dense needs two parameters: in_channels and out_channels        
-        layer_concat.append(mindspore.nn.Dense(input_shape[1], units))
-        layer_concat.append(keras.layers.Reshape(input_shape[1:]))
-        #mindspore.ops.Reshape(tensor, new_shape)，怎么获得tensor呢？
-        return layer_concat
+
+        # units = 1
+        # for i in range(len(input_shape)):
+        #     if i == 0:
+        #         continue #jump batch_size
+        #     units *= input_shape[i]
+
+        layer_str1 = "nn.Flatten()"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+
+        # layer_str2 = "nn.Dense(in_channels={}, out_channels={})".format(units, units)
+        #
+        # layer_str3 = "layer_matching_mindspore.Reshape({})".format(input_shape[1:])
+
+        return [layer_str1, layer_str2]
 
     #done
     @staticmethod
     def flatten_dense_input_legal(input_shape):
         input_shape = list(input_shape)
-        is_legal = len(input_shape) > 3 and input_shape[0] is None
-        concat_size = 1
-        for i, dim in enumerate(input_shape):
-            if i == 0:
-                continue
-            is_legal = is_legal and dim is not None
-            if dim is not None:
-                concat_size *= dim
-        return is_legal and concat_size <= LayerMatching.concat_size_limit
+        is_legal = len(input_shape) > 3 and input_shape[0] is not None
+        # concat_size = 1
+        # for i, dim in enumerate(input_shape):
+        #     if i == 0:
+        #         continue
+        #     is_legal = is_legal and dim is not None
+        #     if dim is not None:
+        #         concat_size *= dim
+        return is_legal
 
-    @staticmethod
-    def repeat_vector_dense(input_shape):
-        n = 3 #这个n是什么作用？
-        import mindspore
-        import keras
-        layer_concat = []
+    # @staticmethod
+    # def cropping1d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #未修改
+    #     layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
+    #     # layer_concat.append(mindspore.dataset.vision.c_transforms.Crop((0,1), ()))#don't know what to do yet
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def cropping1d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] > 2 \
+    #            and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def cropping2d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))
+    #     #cropping = tuple of 2 tuples of 2 ints:
+    #     #interpreted as ((top_crop, bottom_crop), (left_crop, right_crop))
+    #     layer_concat.append(mindspore.dataset.vision.c_transforms.Crop(coordinates = (1, 1), size = 1)) #not for sure
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3])))
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def cropping2d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 4 and input_shape[0] is None \
+    #            and input_shape[1] is not None and input_shape[1] > 2 \
+    #            and input_shape[2] is not None and input_shape[2] > 2 \
+    #            and input_shape[3] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def cropping3d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #未修改
+    #     layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))#don't know what to do yet
+    #     #mindspore.dataset.vision.c_transforms.Crop, but not for sure yet.
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def cropping3d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 5 and input_shape[0] is None \
+    #            and input_shape[1] is not None and input_shape[1] > 2 \
+    #            and input_shape[2] is not None and input_shape[2] > 2 \
+    #            and input_shape[3] is not None and input_shape[3] > 2 \
+    #            and input_shape[4] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
 
-        # layer_concat.append(keras.layers.RepeatVector(n))
-        # layer_concat.append(keras.layers.Reshape((input_shape[1] * n,)))
-        # layer_concat.append(keras.layers.Dense(input_shape[1]))
-
-        #layer_concat.append(mindspore.Tensor.repeat(n, axis = 1))
-        #repeat必须要传入tensor才可以；
-        # https://www.mindspore.cn/docs/zh-CN/r1.7/note/api_mapping/pytorch_diff/npTile.html?highlight=repeat
-        # 缺少reshape层
-
-        layer_concat.append(mindspore.nn.Dense(input_shape[1], input_shape[1]))#因为inputshape的长度就是2
-
-    @staticmethod
-    def repeat_vector_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 2 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[1] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def cropping1d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #未修改
-        layer_concat.append(keras.layers.Cropping1D(cropping=(1, 1)))
-        # layer_concat.append(mindspore.dataset.vision.c_transforms.Crop((0,1), ()))#don't know what to do yet
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1]))
-        return layer_concat
-
-    @staticmethod
-    def cropping1d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None and input_shape[1] > 2 \
-               and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def cropping2d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #layer_concat.append(keras.layers.Cropping2D(cropping=((1, 1), (1, 1))))
-        #cropping = tuple of 2 tuples of 2 ints:
-        #interpreted as ((top_crop, bottom_crop), (left_crop, right_crop))
-        layer_concat.append(mindspore.dataset.vision.c_transforms.Crop(coordinates = (1, 1), size = 1)) #not for sure
-        layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * input_shape[3])))
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def cropping2d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] > 2 \
-               and input_shape[2] is not None and input_shape[2] > 2 \
-               and input_shape[3] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def cropping3d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #未修改
-        layer_concat.append(keras.layers.Cropping3D(cropping=((1, 1), (1, 1), (1, 1))))#don't know what to do yet
-        #mindspore.dataset.vision.c_transforms.Crop, but not for sure yet.
-        layer_concat.append(mindspore.ops.Reshape(input_shape, ((input_shape[1] - 2) * (input_shape[2] - 2) * (input_shape[3] - 2) * input_shape[4])))
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def cropping3d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[1] > 2 \
-               and input_shape[2] is not None and input_shape[2] > 2 \
-               and input_shape[3] is not None and input_shape[3] > 2 \
-               and input_shape[4] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def upsampling_1d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.UpSampling1D(size=2))
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        return layer_concat
-
-    @staticmethod
-    def upsampling_1d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def upsampling_2d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.UpSampling2D(size=(2, 2)))
-        layer_concat.append(mindspore.nn.Flatten())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def upsampling_2d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[2] is not None and input_shape[3] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def upsampling_3d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.UpSampling3D(size=(2, 2, 2)))
-        #mindspore.nn.ResizeBilinear
-        #仅支持bilinear模式对数据进行采样
-        layer_concat.append(mindspore.nn.Flatten())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def upsampling_3d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is None \
-               and input_shape[1] is not None \
-               and input_shape[2] is not None \
-               and input_shape[3] is not None \
-               and input_shape[4] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
+    # @staticmethod
+    # def upsampling_1d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.UpSampling1D(size=2))
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def upsampling_1d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
+    #            and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def upsampling_2d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.UpSampling2D(size=(2, 2)))
+    #     layer_concat.append(mindspore.nn.ResizeBilinear(input_shape[1:]))
+    #     # layer_concat.append(mindspore.nn.Flatten())
+    #     # layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
+    #     # layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def upsampling_2d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 4 and input_shape[0] is None \
+    #            and input_shape[1] is not None and input_shape[2] is not None and input_shape[3] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def upsampling_3d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.UpSampling3D(size=(2, 2, 2)))
+    #     #mindspore.nn.ResizeBilinear
+    #     #仅支持bilinear模式对数据进行采样
+    #     layer_concat.append(mindspore.nn.Flatten())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def upsampling_3d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 5 and input_shape[0] is None \
+    #            and input_shape[1] is not None \
+    #            and input_shape[2] is not None \
+    #            and input_shape[3] is not None \
+    #            and input_shape[4] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
 
 #8.8
     @staticmethod
-    def zeropadding_1d_conv(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.ZeroPadding1D(padding=1))
-        layer_concat.append(mindspore.nn.Conv1d(input_shape[-2], input_shape[-2], 3))
-        return layer_concat
+    def ConstantPad1d(input_shape):
+        layer_str1 = "nn.ConstantPad1d(padding=1, value=0)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def zeropadding_1d_conv_input_legal(input_shape):
+    def ConstantPad1d_input_legal(input_shape):
         input_shape = list(input_shape)
         return len(input_shape) == 3 and input_shape[0] is None \
-               and input_shape[1] is not None and input_shape[2] is not None \
-               and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+               and input_shape[1] is not None and input_shape[2] is not None
 
     @staticmethod
-    def zeropadding_2d_conv(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.ZeroPadding2D(padding=(1, 1)))
-        layer_concat.append(mindspore.nn.Conv2d(input_shape[-1],input_shape[-1], 3, data_format = 'NHWC'))
-        return layer_concat
+    def ConstantPad2d(input_shape):
+        layer_str1 = "nn.ConstantPad2d(padding=1, value=0)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def zeropadding_2d_conv_input_legal(input_shape):
+    def ConstantPad2d_input_legal(input_shape):
         input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
-               and input_shape[3] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
+               and input_shape[3] is not None
 
     @staticmethod
-    def zeropadding_3d_conv(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.ZeroPadding3D(padding=(1, 1, 1)))
-        layer_concat.append(mindspore.nn.Conv3d(input_shape[-1], 3))
-        return layer_concat
+    def ConstantPad3d(input_shape):
+        layer_str1 = "nn.ConstantPad3d(padding=1, value=0)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def zeropadding_3d_conv_input_legal(input_shape):
+    def ConstantPad3d_input_legal(input_shape):
         input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
                and input_shape[3] is not None \
-               and input_shape[4] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
+               and input_shape[4] is not None
 
     @staticmethod
-    def global_max_pooling_1d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalMaxPooling1D())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
+    def AdaptiveAvgPool1d(input_shape):
+        layer_str1 = "nn.AdaptiveAvgPool1d(output_size={})".format(input_shape[2:])
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def global_average_pooling_1d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalAveragePooling1D())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def global_pooling_1d_dense_input_legal(input_shape):
+    def AdaptiveAvgPool1d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+        return len(input_shape) == 3 and input_shape[0] is None \
+            and input_shape[1] is not None and input_shape[2] is not None
 
     @staticmethod
-    def global_max_pooling_2d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalMaxPooling2D())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
+    def AdaptiveMaxPool1d(input_shape):
+        layer_str1 = "nn.AdaptiveMaxPool1d(output_size={})".format(input_shape[2:])
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def global_average_pooling_2d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalAveragePooling2D())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
+    def AdaptiveMaxPool1d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None \
+            and input_shape[1] is not None and input_shape[2] is not None
 
     @staticmethod
-    def global_pooling_2d_dense_input_legal(input_shape):
+    def AdaptiveMaxPool2d(input_shape):
+        layer_str1 = "nn.AdaptiveMaxPool2d(output_size={})".format(input_shape[2:])
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
+
+    @staticmethod
+    def AdaptiveMaxPool2d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[0] is None \
+            and input_shape[1] is not None \
+            and input_shape[2] is not None \
+            and input_shape[3] is not None
+
+    @staticmethod
+    def AdaptiveMaxPool3d(input_shape):
+        layer_str1 = "nn.AdaptiveMaxPool3d(output_size={})".format(input_shape[2:])
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
+
+    @staticmethod
+    def AdaptiveMaxPool3d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 5 and input_shape[0] is None \
+            and input_shape[1] is not None \
+            and input_shape[2] is not None \
+            and input_shape[3] is not None \
+            and input_shape[4] is not None
+
+    @staticmethod
+    def ReflectionPad1d(input_shape):
+        layer_str1 = "nn.ConstantPad1d(padding=1)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
+
+    @staticmethod
+    def ReflectionPad1d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[0] is None \
+               and input_shape[1] is not None and input_shape[2] is not None
+
+    @staticmethod
+    def ReflectionPad2d(input_shape):
+        layer_str1 = "nn.ReflectionPad2d(padding=1)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
+
+    @staticmethod
+    def ReflectionPad2d_input_legal(input_shape):
         input_shape = list(input_shape)
         return len(input_shape) == 4 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
-               and input_shape[3] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
+               and input_shape[3] is not None
 
     @staticmethod
-    def global_max_pooling_3d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalMaxPooling3D())
-        layer_concat.append(mindspore.nn.Flatten())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
+    def ReflectionPad3d(input_shape):
+        layer_str1 = "nn.ReflectionPad3d(padding=1)"
+
+        layer_str2 = "layer_matching_mindspore.ResizeBilinear({})".format(input_shape)
+        return [layer_str1, layer_str2]
 
     @staticmethod
-    def global_average_pooling_3d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        layer_concat.append(keras.layers.GlobalAveragePooling3D())
-        layer_concat.append(mindspore.nn.Flatten())
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def global_pooling_3d_dense_input_legal(input_shape):
+    def ReflectionPad3d_input_legal(input_shape):
         input_shape = list(input_shape)
         return len(input_shape) == 5 and input_shape[0] is None \
                and input_shape[1] is not None \
                and input_shape[2] is not None \
                and input_shape[3] is not None \
-               and input_shape[4] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
+               and input_shape[4] is not None
+    # @staticmethod
+    # def global_max_pooling_1d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalMaxPooling1D())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_average_pooling_1d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalAveragePooling1D())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_pooling_1d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
+    #            and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def global_max_pooling_2d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalMaxPooling2D())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_average_pooling_2d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalAveragePooling2D())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_pooling_2d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 4 and input_shape[0] is None \
+    #            and input_shape[1] is not None \
+    #            and input_shape[2] is not None \
+    #            and input_shape[3] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def global_max_pooling_3d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalMaxPooling3D())
+    #     layer_concat.append(mindspore.nn.Flatten())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_average_pooling_3d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     layer_concat.append(keras.layers.GlobalAveragePooling3D())
+    #     layer_concat.append(mindspore.nn.Flatten())
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def global_pooling_3d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 5 and input_shape[0] is None \
+    #            and input_shape[1] is not None \
+    #            and input_shape[2] is not None \
+    #            and input_shape[3] is not None \
+    #            and input_shape[4] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
 
-    @staticmethod
-    def simple_rnn_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #未修改
-        layer_concat.append(keras.layers.SimpleRNN(50))
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def simple_rnn_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None \
-               and input_shape[1] is not None \
-               and input_shape[2] is not None \
-               and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def gru_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #layer_concat.append(keras.layers.GRU(50))
-        layer_concat.append(mindspore.nn.GRU(50))
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def gru_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def lstm_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #layer_concat.append(keras.layers.LSTM(50))
-        layer_concat.append(mindspore.ops.LSTM(50)) #what does 50 means ?
-        layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
-        layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
-        return layer_concat
-
-    @staticmethod
-    def lstm_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
-
-    @staticmethod
-    def conv_lstm_2d_dense(input_shape):
-        import mindspore
-        layer_concat = []
-        #未修改
-        layer_concat.append(keras.layers.ConvLSTM2D(input_shape[-1], kernel_size=(1, 1), strides=(1, 1), padding='same', return_sequences=True))
-        return layer_concat
-
-    @staticmethod
-    def conv_lstm_2d_dense_input_legal(input_shape):
-        input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is None and input_shape[1] is not None \
-               and input_shape[2] is not None and input_shape[2] > 3 \
-               and input_shape[3] is not None and input_shape[3] > 3 \
-               and input_shape[4] is not None \
-               and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
+    # @staticmethod
+    # def simple_rnn_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #未修改
+    #     layer_concat.append(keras.layers.SimpleRNN(50))
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def simple_rnn_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None \
+    #            and input_shape[1] is not None \
+    #            and input_shape[2] is not None \
+    #            and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def gru_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #layer_concat.append(keras.layers.GRU(50))
+    #     layer_concat.append(mindspore.nn.GRU(50))
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def gru_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
+    #            and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def lstm_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #layer_concat.append(keras.layers.LSTM(50))
+    #     layer_concat.append(mindspore.ops.LSTM(50)) #what does 50 means ?
+    #     layer_concat.append(mindspore.nn.Dense(input_shape[-1], input_shape[1] * input_shape[2]))
+    #     layer_concat.append(mindspore.ops.Reshape(input_shape, input_shape[1:]))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def lstm_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 3 and input_shape[0] is None and input_shape[1] is not None \
+    #            and input_shape[2] is not None and input_shape[1] * input_shape[2] <= LayerMatching.concat_size_limit
+    #
+    # @staticmethod
+    # def conv_lstm_2d_dense(input_shape):
+    #     import mindspore
+    #     layer_concat = []
+    #     #未修改
+    #     layer_concat.append(keras.layers.ConvLSTM2D(input_shape[-1], kernel_size=(1, 1), strides=(1, 1), padding='same', return_sequences=True))
+    #     return layer_concat
+    #
+    # @staticmethod
+    # def conv_lstm_2d_dense_input_legal(input_shape):
+    #     input_shape = list(input_shape)
+    #     return len(input_shape) == 5 and input_shape[0] is None and input_shape[1] is not None \
+    #            and input_shape[2] is not None and input_shape[2] > 3 \
+    #            and input_shape[3] is not None and input_shape[3] > 3 \
+    #            and input_shape[4] is not None \
+    #            and input_shape[1] * input_shape[2] * input_shape[3] * input_shape[4] <= LayerMatching.concat_size_limit
 
 if __name__ == '__main__':
     pass

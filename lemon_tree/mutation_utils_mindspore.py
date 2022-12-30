@@ -39,8 +39,12 @@ class LayerUtils:
         self.is_input_legal['average_pooling_2d'] = LayerUtils.average_pooling_2d_input_legal
         self.available_model_level_layers['average_pooling_3d'] = LayerUtils.average_pooling_3d
         self.is_input_legal['average_pooling_3d'] = LayerUtils.average_pooling_3d_input_legal
+        self.available_model_level_layers['batch_normalization_1d'] = LayerUtils.batch_normalization_1d
+        self.is_input_legal['batch_normalization_1d'] = LayerUtils.batch_normalization_1d_input_legal
         self.available_model_level_layers['batch_normalization_2d'] = LayerUtils.batch_normalization_2d
-        self.is_input_legal['batch_normalization'] = LayerUtils.batch_normalization_input_legal
+        self.is_input_legal['batch_normalization_2d'] = LayerUtils.batch_normalization_2d_input_legal
+        self.available_model_level_layers['batch_normalization_3d'] = LayerUtils.batch_normalization_3d
+        self.is_input_legal['batch_normalization_3d'] = LayerUtils.batch_normalization_3d_input_legal
         self.available_model_level_layers['leaky_relu_layer'] = LayerUtils.leaky_relu_layer
         self.is_input_legal['leaky_relu_layer'] = LayerUtils.leaky_relu_layer_input_legal
         self.available_model_level_layers['prelu_layer'] = LayerUtils.prelu_layer
@@ -85,11 +89,11 @@ class LayerUtils:
 
 
     @staticmethod
-    def dense(in_channels, out_channels,
+    def dense(input_shape,
               weight_init='normal', bias_init='zeros', has_bias=True, activation=None):
         layer_str = "nn.Dense(in_channels={}, out_channels={}, " \
                     "weight_init={}, bias_init={}, has_bias={}, " \
-                    "activation={})".format(in_channels, out_channels, weight_init,
+                    "activation={})".format(input_shape[1], input_shape[1], weight_init,
                                             bias_init, has_bias, activation)
 
         return [layer_str]
@@ -103,14 +107,14 @@ class LayerUtils:
         return len(input_shape) == 2 and input_shape[0] is not None and input_shape[1] is not None
 
     @staticmethod
-    def conv1d(in_channels, out_channels,
-               kernel_size, stride=1, pad_mode="same",
+    def conv1d(input_shape,
+               kernel_size=3, stride=1, pad_mode="same",
                padding=0, dilation=1, group=1, has_bias=False,
                weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv1d(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -119,17 +123,17 @@ class LayerUtils:
     @staticmethod
     def conv1d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
-    def conv_1d_transpose(in_channels, out_channels,
-                          kernel_size, stride=1, pad_mode="same",
+    def conv_1d_transpose(input_shape,
+                          kernel_size=3, stride=1, pad_mode="same",
                           padding=0, dilation=1, group=1, has_bias=False,
                           weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv1dTranspose(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -138,17 +142,17 @@ class LayerUtils:
     @staticmethod
     def conv_1d_transpose_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
-    def conv2d(in_channels, out_channels,
-               kernel_size, stride=1, pad_mode="same",
+    def conv2d(input_shape,
+               kernel_size=3, stride=1, pad_mode="same",
                padding=0, dilation=1, group=1, has_bias=False,
                weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv2d(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -158,55 +162,55 @@ class LayerUtils:
     def conv2d_input_legal(input_shape):
         #input_shape = input_shape.as_list()
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
-    def separable_conv_1d(in_channels, out_channels,
-                          kernel_size, group, stride=1, pad_mode="same",
+    def separable_conv_1d(input_shape,
+                          kernel_size=3, group=1, stride=1, pad_mode="same",
                           padding=0, dilation=1, has_bias=False,
                           weight_init="normal", bias_init="zeros"):
         # in_channels、out_channels、group三个参数相等
         layer_str1 = "nn.Conv1d(in_channels={}, out_channels={}, " \
                      "kernel_size={}, stride={}, pad_mode={}, " \
                      "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={})".format(in_channels, out_channels, kernel_size,
-                                            stride, pad_mode, padding, dilation, group,
+                     "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                                            stride, pad_mode, padding, dilation, input_shape[1],
                                             has_bias, weight_init, bias_init)
 
         # kernel_size = 1，group回到默认值1
         layer_str2 = "nn.Conv1d(in_channels={}, out_channels={}, " \
                      "kernel_size={}, stride={}, pad_mode={}, " \
                      "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={})".format(out_channels, out_channels, kernel_size,
+                     "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
                                             stride, pad_mode, padding, dilation, group,
                                             has_bias, weight_init, bias_init)
 
-        return "separable_conv_1d", [layer_str1, layer_str2]
+        return [layer_str1, layer_str2]
 
     @staticmethod
     def separable_conv_1d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
-    def separable_conv_2d(in_channels, out_channels,
-                          kernel_size, group, stride=1, pad_mode="same",
+    def separable_conv_2d(input_shape,
+                          kernel_size=3, group=1, stride=1, pad_mode="same",
                           padding=0, dilation=1, has_bias=False,
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         # in_channels、out_channels、group三个参数相等
         layer_str1 = "nn.Conv2d(in_channels={}, out_channels={}, " \
                      "kernel_size={}, stride={}, pad_mode={}, " \
                      "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={}, data_format={})".format(in_channels, out_channels, kernel_size,
-                                                            stride, pad_mode, padding, dilation, group,
+                     "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                                                            stride, pad_mode, padding, dilation, input_shape[1],
                                                             has_bias, weight_init, bias_init, data_format)
 
         # kernel_size = 1，group回到默认值1
         layer_str2 = "nn.Conv2d(in_channels={}, out_channels={}, " \
                      "kernel_size={}, stride={}, pad_mode={}, " \
                      "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={}, data_format={})".format(out_channels, out_channels, kernel_size,
+                     "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
                                                             stride, pad_mode, padding, dilation, group,
                                                             has_bias, weight_init, bias_init, data_format)
 
@@ -215,20 +219,20 @@ class LayerUtils:
     @staticmethod
     def separable_conv_2d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
             and input_shape[3] is not None and input_shape[3] >= 3
 
     # in_channels、out_channels、group三个参数相等
     @staticmethod
-    def depthwise_conv_2d(in_channels, out_channels,
-                          kernel_size, group, stride=1, pad_mode="same",
+    def depthwise_conv_2d(input_shape,
+                          kernel_size=3, group=1, stride=1, pad_mode="same",
                           padding=0, dilation=1, has_bias=False,
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv2d(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(in_channels, out_channels, kernel_size,
-                                                           stride, pad_mode, padding, dilation, group,
+                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                                                           stride, pad_mode, padding, dilation, input_shape[1],
                                                            has_bias, weight_init, bias_init, data_format)
 
         return [layer_str]
@@ -236,18 +240,18 @@ class LayerUtils:
     @staticmethod
     def depthwise_conv_2d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
-    def conv_2d_transpose(in_channels, out_channels,
-                          kernel_size, stride=1, pad_mode="same",
+    def conv_2d_transpose(input_shape,
+                          kernel_size=3, stride=1, pad_mode="same",
                           padding=0, dilation=1, group=1, has_bias=False,
                           weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv2dTranspose(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -256,18 +260,18 @@ class LayerUtils:
     @staticmethod
     def conv_2d_transpose_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
-    def conv3d(in_channels, out_channels,
-               kernel_size, stride=1, pad_mode="same",
+    def conv3d(input_shape,
+               kernel_size=3, stride=1, pad_mode="same",
                padding=0, dilation=1, group=1, has_bias=False,
                weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv3d(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -276,20 +280,20 @@ class LayerUtils:
     @staticmethod
     def conv_3d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is not None \
+        return len(input_shape) == 5 and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3 \
                and input_shape[4] is not None and input_shape[4] >= 3
 
     @staticmethod
-    def conv_3d_transpose(in_channels, out_channels,
-                          kernel_size, stride=1, pad_mode="same",
+    def conv_3d_transpose(input_shape,
+                          kernel_size=3, stride=1, pad_mode="same",
                           padding=0, dilation=1, group=1, output_padding=0, has_bias=False,
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv3dTranspose(in_channels={}, out_channels={}, " \
                     "kernel_size={}, stride={}, pad_mode={}, " \
                     "padding={}, dilation={}, group={}, output_padding={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(in_channels, out_channels, kernel_size,
+                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group, output_padding,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -298,7 +302,7 @@ class LayerUtils:
     @staticmethod
     def conv_3d_transpose_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is not None \
+        return len(input_shape) == 5 and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3 \
                and input_shape[4] is not None and input_shape[4] >= 3
@@ -313,7 +317,7 @@ class LayerUtils:
     @staticmethod
     def max_pooling_1d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def max_pooling_2d(kernel_size=1, stride=1, pad_mode="same", data_format="NCHW"):
@@ -325,11 +329,11 @@ class LayerUtils:
     @staticmethod
     def max_pooling_2d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
-    def max_pooling_3d(kernel_size, stride=None, padding=0, dilation=1,
+    def max_pooling_3d(kernel_size=3, stride=None, padding=0, dilation=1,
                        return_indices=False, ceil_mode=False):
         layer_str = "nn.MaxPool3d(kernel_size={}, stride={}, padding={}, " \
                     "dilation={}, return_indices={}, ceil_mode={})".format(kernel_size, stride, padding,
@@ -340,7 +344,7 @@ class LayerUtils:
     @staticmethod
     def max_pooling_3d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is not None \
+        return len(input_shape) == 5 and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3 \
                and input_shape[4] is not None and input_shape[4] >= 3
@@ -355,7 +359,7 @@ class LayerUtils:
     @staticmethod
     def average_pooling_1d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 3 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3
 
     @staticmethod
     def average_pooling_2d(kernel_size=1, stride=1, pad_mode="same", data_format="NCHW"):
@@ -367,11 +371,11 @@ class LayerUtils:
     @staticmethod
     def average_pooling_2d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 4 and input_shape[0] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3
 
     @staticmethod
-    def average_pooling_3d(kernel_size, stride=None, padding=0, ceil_mode=False,
+    def average_pooling_3d(kernel_size=3, stride=None, padding=0, ceil_mode=False,
                            count_include_pad=True, divisor_override=None):
         layer_str = "nn.AvgPool3d(kernel_size={}, stride={}, ceil_mode={}, " \
                     "count_include_pad={}, divisor_override={})".format(kernel_size, stride, padding, ceil_mode,
@@ -382,18 +386,18 @@ class LayerUtils:
     @staticmethod
     def average_pooling_3d_input_legal(input_shape):
         input_shape = list(input_shape)
-        return len(input_shape) == 5 and input_shape[0] is not None \
+        return len(input_shape) == 5 and input_shape[1] is not None \
                and input_shape[2] is not None and input_shape[2] >= 3 \
                and input_shape[3] is not None and input_shape[3] >= 3 \
                and input_shape[4] is not None and input_shape[4] >= 3
 
     @staticmethod
-    def batch_normalization_2d(num_features, eps=1e-5, momentum=0.9, affine=True,
+    def batch_normalization_1d(input_shape, eps=1e-5, momentum=0.9, affine=True,
                                gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
                                moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
-        layer_str = "nn.BatchNorm2d(num_features={}, eps={}, momentum={}, affine={}, " \
+        layer_str = "nn.BatchNorm1d(num_features={}, eps={}, momentum={}, affine={}, " \
                     "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
-                    "use_batch_statistics={}, data_format={})".format(num_features, eps, momentum, affine,
+                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
                                                                       gamma_init, beta_init, moving_mean_init,
                                                                       moving_var_init,
                                                                       use_batch_statistics, data_format)
@@ -401,8 +405,47 @@ class LayerUtils:
         return [layer_str]
 
     @staticmethod
-    def batch_normalization_input_legal(input_shape):
-        return True
+    def batch_normalization_1d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 3 and input_shape[1] is not None and input_shape[2] is not None
+
+    @staticmethod
+    def batch_normalization_2d(input_shape, eps=1e-5, momentum=0.9, affine=True,
+                               gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
+                               moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
+        layer_str = "nn.BatchNorm2d(num_features={}, eps={}, momentum={}, affine={}, " \
+                    "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
+                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
+                                                                      gamma_init, beta_init, moving_mean_init,
+                                                                      moving_var_init,
+                                                                      use_batch_statistics, data_format)
+
+        return [layer_str]
+
+    @staticmethod
+    def batch_normalization_2d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 4 and input_shape[1] is not None and input_shape[2] is not None and input_shape[3] is not None
+
+    @staticmethod
+    def batch_normalization_3d(input_shape, eps=1e-5, momentum=0.9, affine=True,
+                               gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
+                               moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
+        layer_str = "nn.BatchNorm3d(num_features={}, eps={}, momentum={}, affine={}, " \
+                    "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
+                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
+                                                                      gamma_init, beta_init, moving_mean_init,
+                                                                      moving_var_init,
+                                                                      use_batch_statistics, data_format)
+
+        return [layer_str]
+
+    @staticmethod
+    def batch_normalization_3d_input_legal(input_shape):
+        input_shape = list(input_shape)
+        return len(input_shape) == 5 and input_shape[1] is not None and input_shape[2] is not None \
+            and input_shape[3] is not None and input_shape[4] is not None
+
 
     @staticmethod
     def leaky_relu_layer(alpha=0.2):
@@ -454,59 +497,59 @@ class LayerUtils:
     def relu_layer_input_legal(input_shape):
         return True
 
-    @staticmethod
-    def AdaptiveMaxPool1d_layer(output_size):
-        layer_str = "nn.AdaptiveMaxPool1d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def AdaptiveMaxPool2d_layer(output_size):
-        layer_str = "nn.AdaptiveMaxPool2d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def AdaptiveMaxPool3d_layer(output_size):
-        layer_str = "nn.AdaptiveMaxPool3d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def AdaptiveAvgPool1d_layer(output_size):
-        layer_str = "nn.AdaptiveAvgPool1d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def AdaptiveAvgPool2d_layer(output_size):
-        layer_str = "nn.AdaptiveAvgPool2d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def AdaptiveAvgPool3d_layer(output_size):
-        layer_str = "nn.AdaptiveAvgPool3d(output_size={})".format(output_size)
-
-        return [layer_str]
-
-    @staticmethod
-    def FractionalMaxPool2d_layer(kernel_size, output_size=None, output_ratio=None, return_indices=False,
-                                  _random_samples=None):
-        layer_str = "nn.FractionalMaxPool2d(kernel_size={}, output_size={},output_ratio={}," \
-                    "return_indices={},_random_samples={},)".format(kernel_size, output_size, output_ratio,
-                                                                    return_indices, _random_samples)
-
-        return [layer_str]
-
-    @staticmethod
-    def FractionalMaxPool3d_layer(kernel_size, output_size=None, output_ratio=None, return_indices=False,
-                                  _random_samples=None):
-        layer_str = "nn.FractionalMaxPool3d(kernel_size={}, output_size={},output_ratio={}," \
-                    "return_indices={},_random_samples={},)".format(kernel_size, output_size, output_ratio,
-                                                                    return_indices, _random_samples)
-
-        return [layer_str]
+    # @staticmethod
+    # def AdaptiveMaxPool1d_layer(output_size):
+    #     layer_str = "nn.AdaptiveMaxPool1d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def AdaptiveMaxPool2d_layer(output_size):
+    #     layer_str = "nn.AdaptiveMaxPool2d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def AdaptiveMaxPool3d_layer(output_size):
+    #     layer_str = "nn.AdaptiveMaxPool3d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def AdaptiveAvgPool1d_layer(output_size):
+    #     layer_str = "nn.AdaptiveAvgPool1d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def AdaptiveAvgPool2d_layer(output_size):
+    #     layer_str = "nn.AdaptiveAvgPool2d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def AdaptiveAvgPool3d_layer(output_size):
+    #     layer_str = "nn.AdaptiveAvgPool3d(output_size={})".format(output_size)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def FractionalMaxPool2d_layer(kernel_size, output_size=None, output_ratio=None, return_indices=False,
+    #                               _random_samples=None):
+    #     layer_str = "nn.FractionalMaxPool2d(kernel_size={}, output_size={},output_ratio={}," \
+    #                 "return_indices={},_random_samples={},)".format(kernel_size, output_size, output_ratio,
+    #                                                                 return_indices, _random_samples)
+    #
+    #     return [layer_str]
+    #
+    # @staticmethod
+    # def FractionalMaxPool3d_layer(kernel_size, output_size=None, output_ratio=None, return_indices=False,
+    #                               _random_samples=None):
+    #     layer_str = "nn.FractionalMaxPool3d(kernel_size={}, output_size={},output_ratio={}," \
+    #                 "return_indices={},_random_samples={},)".format(kernel_size, output_size, output_ratio,
+    #                                                                 return_indices, _random_samples)
+    #
+    #     return [layer_str]
 
     @staticmethod
     def celu_layer(alpha=1.0):

@@ -23,7 +23,7 @@ class Node(object):
     def __init__(self, index, unique_name, shape,
                  operator_name = None, node_module=None, input_list=None,
                  output_list=None, output_name=None, copy_num=None,
-                 ast_index = None):
+                 ast_index = None, ms_class = None):
         self.index = index
         self.unique_name = unique_name # module name + output name
         self.operator_name = operator_name
@@ -34,6 +34,7 @@ class Node(object):
         self.output_name = output_name
         self.copy_num = copy_num
         self.ast_index = ast_index
+        self.ms_class = ms_class #newly added by hyr
 
     def set_uniquename(self, unique_name):
         self.unique_name = unique_name
@@ -56,6 +57,10 @@ class Node(object):
     def set_ast_index(self, ast_index):
         self.ast_index = ast_index
 
+    def set_ms_operator(self, ms_class): #newly added by hyr
+        self.ms_class = ms_class
+        
+        
     def get_prefix(self):
         unique_name \
             = self.unique_name

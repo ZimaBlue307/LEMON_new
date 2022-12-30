@@ -17,10 +17,6 @@ from mutation_utils_mindspore import LayerUtils
 
 
 
-
-
-
-
 def find_module(module_dict, unique_name):
     '''
     :param module_dict:
@@ -215,8 +211,39 @@ def same_module_list(table, index, module_list):
 
     return indices
 
+def search_init_ms_class(table, index): # newly added by hyr
+    node = table.nodeList[index]
+    module_list = node.node_module
+    prefix = node.unique_name.split(".")[:-1]
+    prefix.append(node.operator_name)
+    return_list = list()
+    for i in range(len(module_list)):
+        for item in table.ast.body:
+            if isinstance(item, ast.ClassDef) and item.name == module_list[i]:
+                init_func = item.body[0]
+                for j in range(len(init_func.body)):
+                    if isinstance(init_func.body[j], ast.Assign) and init_func.body[j].targets[0].attr == prefix[i]:
+                        func_node = init_func.body[j].value.func
+                        if isinstance(func_node, ast.Attribute):
+                            attr_str = func_node.attr
+                            if hasattr(func_node.value, 'id'):
+                                id_str = func_node.value.id
+                                join_list = [id_str, attr_str]
+                                ms_class_str = ".".join(join_list)
+                            else:
+                                id_str = func_node.value.value.id
+                                value_attr = func_node.value.attr
+                                join_list = [id_str, value_attr, attr_str]
+                                ms_class_str = ".".join(join_list)
+                        elif isinstance(func_node, ast.Name):
+                            ms_class_str = func_node.id
+                        else:
+                            print("this assign node belongs to an other class: {}".format(type(func_node)))
+                            continue
+                        return_list.append(ms_class_str)
+    return return_list
 
-def search_init_statement(table, index):
+def search_init_statement(table, index): #search_init_statement
     node = table.nodeList[index]
     module_list = node.node_module
     prefix = node.unique_name.split(".")[:-1]
@@ -229,7 +256,6 @@ def search_init_statement(table, index):
                 for j in range(len(init_func.body)):
                     if isinstance(init_func.body[j], ast.Assign) and init_func.body[j].targets[0].attr == prefix[i]:
                         return_list.append(j)
-
     return return_list
 
 def return_construct_op_name(node):
@@ -240,6 +266,7 @@ def return_construct_op_name(node):
         return node.attr
     elif isinstance(node, ast.Name):
         return node.id
+    
 
 def search_construct_statement(table, index):
     node = table.nodeList[index]
@@ -468,9 +495,6 @@ def delete_node(table, index, param_dict):
                     new_node = ast.parse(out_str).body[0]
                     module.body[1].body[output_index] = new_node
             del module.body[1].body[target_node.ast_index[-1][1]]
-
-
-
     # every node in inputs del the index in outputs
     for i in inputs:
         node = table.nodeList[i]
@@ -514,7 +538,7 @@ if __name__ == '__main__':
     ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
     model_ast = astor.parse_file(model_path)
     param_dict = mindspore.load_checkpoint(ckpt_path)
-    print(param_dict.keys())
+    # print(param_dict.keys())
     # result_dict = get_code(model_ast)
 
     #construct a dict including module index in model_ast.body
@@ -522,21 +546,23 @@ if __name__ == '__main__':
     for item in model_ast.body:
         if isinstance(item, ast.ClassDef):
             module_dict[item.name] = item
-    print(module_dict)
+    # print(module_dict)
 
     with open('analyzed_data.json', 'r') as f:
         analyzed_data = json.load(f)
 
     print(len(analyzed_data))
     table = construct_table(model_ast, analyzed_data, module_dict)
-    print(len(table.nodeList))
-    table.print()
-    index = 1
-    # returnlist = get_ast_index(table, index)
-    # table, param_dict = delete_node(table=table, index=index, param_dict=param_dict)
-    new_node_name = "conv_2d"
-    kwargs = {"in_channels":2, "out_channels": 3, "kernel_size":(2, 2)}
-    table, param_dict = insert_node(table, index, new_node_name, **kwargs)
-    # test_kwargs(table=table, index=index, )
-    table.print()
-    table.save_ast(save_path="result.py")
+    
+    
+    # print(len(table.nodeList))
+    # table.print()
+    # index = 1
+    # # returnlist = get_ast_index(table, index)
+    # # table, param_dict = delete_node(table=table, index=index, param_dict=param_dict)
+    # new_node_name = "conv_2d"
+    # kwargs = {"in_channels":2, "out_channels": 3, "kernel_size":(2, 2)}
+    # table, param_dict = insert_node(table, index, new_node_name, **kwargs)
+    # # test_kwargs(table=table, index=index, )
+    # table.print()
+    # table.save_ast(save_path="result.py")

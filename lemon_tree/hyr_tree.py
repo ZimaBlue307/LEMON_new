@@ -8,6 +8,7 @@ import sys
 import astor
 import json
 import mindspore
+import astor
 from tree_1 import *
 
 class PrintVisitor(ast.NodeVisitor):
@@ -322,5 +323,6 @@ def test_copy_class():
     print(new_ast)
     
 if __name__ == "__main__":
-    # test_get_model_output_index()
-    test_copy_class()
+    model_path = f"../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.py"
+    model_ast = astor.parse_file(model_path)
+    
