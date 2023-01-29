@@ -14,7 +14,8 @@ import re
 from utils import *
 import mindspore
 from mutation_utils_mindspore import LayerUtils
-
+from mindspore import Parameter, Tensor
+import numpy as np
 
 
 def find_module(module_dict, unique_name):
@@ -34,10 +35,11 @@ def find_module(module_dict, unique_name):
             if isinstance(assign, ast.Assign):
                 target = assign.targets[0].attr
                 if target == module_name:
-                    module =  assign.value.func.id
+                    module = assign.value.func.id
                     module_list = deep_find_module(module_dict, module, unique_names[1:], module_list)
                     return module_list
         return None
+
 
 def deep_find_module(module_dict, module_prefix, unique_names, module_list):
     # find Module based on module_prefix
@@ -59,6 +61,7 @@ def deep_find_module(module_dict, module_prefix, unique_names, module_list):
     print("ERROR: Not find corresbonding module {}".format(unique_names))
     return None
 
+
 def get_name(data_item):
     unique_name, module_name = data_item[0], data_item[1]
     module_names = module_name.split(".")
@@ -78,8 +81,6 @@ def get_copy_name(module_list):
 
 
 def construct_table(model_ast, analyzed_data, module_dict):
-
-
     class MyNodeVisitor(ast.NodeVisitor):
         def __init__(self):
             super(MyNodeVisitor, self).__init__()
@@ -110,6 +111,7 @@ def construct_table(model_ast, analyzed_data, module_dict):
         table.nodeList[index].set_output(output_list[index])
     return table
 
+
 def get_model_index(input_list, analyzed_data):
     """
     for example,
@@ -125,8 +127,8 @@ def get_model_index(input_list, analyzed_data):
             return_list.append(-1)
         else:
             input_tuple = tuple(input.split("."))
-            input_name = input_tuple[-1] #最后一位是输入的name
-            input_prefix = input.rstrip("." + input_name)  #前缀用来筛选，防止出现相同的name
+            input_name = input_tuple[-1]  # 最后一位是输入的name
+            input_prefix = input.rstrip("." + input_name)  # 前缀用来筛选，防止出现相同的name
             # print(input_name)
             # print(input_prefix)
             # print("===========")
@@ -134,12 +136,13 @@ def get_model_index(input_list, analyzed_data):
                 if (input_name != 'x') and (input_name == element[0]) and (input_prefix in element[1]):
                     return_list.append(i)
                     break
-                elif (input_name == 'x') and (input_prefix in element[1]): #往上找到第一个的input的index;
+                elif (input_name == 'x') and (input_prefix in element[1]):  # 往上找到第一个的input的index;
                     return_list.append(i)
                     break
                 else:
                     continue
     return return_list
+
 
 def get_model_output_index(analyzed_data):
     for i, data_element in enumerate(analyzed_data):
@@ -147,16 +150,16 @@ def get_model_output_index(analyzed_data):
         output_name = data_element[0]
         op_tuple = tuple(data_element[1].split("."))
         op_prefix = '.'.join(op_tuple[:-1])
-        if 'ast' in data_element[1]: #处理一些特殊情况；
+        if 'ast' in data_element[1]:  # 处理一些特殊情况；
             input_search = output_name
         elif len(op_prefix) != 0:
             input_search = op_prefix + "." + output_name
         else:
             input_search = output_name
-        #默认analyzed_data的最后一条元素是最终的输出；
+        # 默认analyzed_data的最后一条元素是最终的输出；
         if data_element == analyzed_data[-1]:
-            return_list.append(-2) #表示最终输出张量；
-        #先考虑相同class之内的；
+            return_list.append(-2)  # 表示最终输出张量；
+        # 先考虑相同class之内的；
         for i, element in enumerate(analyzed_data):
             input_list = element[-1]
             for j, input in enumerate(input_list):
@@ -169,7 +172,7 @@ def get_model_output_index(analyzed_data):
                 break
         data_element.append(return_list)
 
-    #再考虑class跳转出去的，以及其他特殊情况.初步打算倒着遍历；
+    # 再考虑class跳转出去的，以及其他特殊情况.初步打算倒着遍历；
     length = len(analyzed_data)
     for i in range(length):
         data_element = analyzed_data[length - i - 1]
@@ -191,9 +194,11 @@ def get_model_output_index(analyzed_data):
         return_list[i] = tmp
     return return_list
 
+
 def set_copy_module_name(module_name, index):
     module_name = module_name.split("_")[0]
     return module_name + '_' + str(index)
+
 
 def same_module_list(table, index, module_list):
     indices = list()
@@ -211,7 +216,8 @@ def same_module_list(table, index, module_list):
 
     return indices
 
-def search_init_ms_class(table, index): # newly added by hyr
+
+def search_init_ms_class(table, index):  # newly added by hyr
     node = table.nodeList[index]
     module_list = node.node_module
     prefix = node.unique_name.split(".")[:-1]
@@ -243,7 +249,8 @@ def search_init_ms_class(table, index): # newly added by hyr
                         return_list.append(ms_class_str)
     return return_list
 
-def search_init_statement(table, index): #search_init_statement
+
+def search_init_statement(table, index):  # search_init_statement
     node = table.nodeList[index]
     module_list = node.node_module
     prefix = node.unique_name.split(".")[:-1]
@@ -258,6 +265,7 @@ def search_init_statement(table, index): #search_init_statement
                         return_list.append(j)
     return return_list
 
+
 def return_construct_op_name(node):
     if isinstance(node, ast.BinOp):
         node_type = type(node.op)
@@ -266,7 +274,7 @@ def return_construct_op_name(node):
         return node.attr
     elif isinstance(node, ast.Name):
         return node.id
-    
+
 
 def search_construct_statement(table, index):
     node = table.nodeList[index]
@@ -300,6 +308,7 @@ def search_construct_statement(table, index):
                                 break
     return return_list
 
+
 def get_ast_index(table, index):
     init_list = search_init_statement(table, index)
     cons_list = search_construct_statement(table, index)
@@ -311,6 +320,7 @@ def get_ast_index(table, index):
         tmp = [init_list[i], cons_list[i]]
         return_list.append(tmp)
     return return_list
+
 
 def copy_module(table, index, param_dict):
     '''
@@ -373,7 +383,7 @@ def copy_module(table, index, param_dict):
                 # init_node.value.func = new_module_list[i+1]
                 statement = astunparse.unparse(init_node)
                 node_split = statement.split("(")
-                node_split[0] = new_module_list[i+1]
+                node_split[0] = new_module_list[i + 1]
                 new_statement = "(".join(node_split)
                 new_node = ast.parse(new_statement).body[0].value
                 table.ast.body[j].body[0].body[target_node.ast_index[i][0]].value = new_node
@@ -396,54 +406,83 @@ def copy_module(table, index, param_dict):
 
     return table, param_dict
 
-def insert_node(table, index, new_node_name, **kwargs):
+
+def insert_node(table, index, param_dict, new_node_name=None):
     '''
+    insert a new node after the node ordered in index
+    if new_node_name is None, we copy the index node
     :param table:
     :param index:
     :param new_node_name:
-    :param kwargs:
+    :param param_dict:
     :return:
     '''
     target_node = table.nodeList[index]
     # if the module num is more than mindsporeModel, we need copy the module
     if len(target_node.node_module) > 1:
         table, model_ast = copy_module(table=table, index=index, param_dict=param_dict)
-
+    #get output shape from index
+    assert len(target_node.output_list) == 1, "The length of output in current op should be one"
+    output_shape = target_node.output_list[0]
+    kwargs = {"input_shape": output_shape}
     # insert the node after the index
     layer_utils = LayerUtils()
+    op_name = "self.addNode_" + str(table.add_node_num)
+    out_name = "opt_addNode_" + str(table.add_node_num)
     if new_node_name in layer_utils.available_model_level_layers.keys():
         insert_str = layer_utils.available_model_level_layers[new_node_name](**kwargs)
-        # get op_name
-        op_name = "addNode_" + table.add_node_num
-        out_name = "opt_addNode_" + table.add_node_num
-        table.add_node_num += 1
-        # get full inser str
-        insert_str = op_name + " = " + insert_str
-        insert_node = ast.parse(insert_str).body[0]
-
-        #insert the node
-        # in ast, direct add node after the statement
-        for module in table.ast.body:
-            if isinstance(module, ast.ClassDef) and module.name == target_node.node_module[-1]:
-                assert len(target_node.input_list) == 1
-                ast_index = target_node.ast_index[-1]
-                init_func = module.body[0]
-                init_func.body.insert(ast_index[0], insert_node)
-
-
-
-        node_len = table.node_list_len()
-        insert_index = node_len
-        #默认插入的module位置和上一行相同
-
-
-
-
+        insert_str = insert_str[0]
     else:
         print("{} not implemented!".format(new_node_name))
+        return None
+        # get op_name
+    table.add_node_num += 1
+    # get full inser str
+    if not new_node_name is None:
+        insert_str = op_name + " = " + insert_str
+        init_insert_node = ast.parse(insert_str).body[0]
+    # get out_opt_name of target node
+    out_target_name = target_node.unique_name.split(".")[-1]
+    insert_str2 = out_name + " = self." + op_name + "( {} )".format(out_target_name)
+    construct_insert_node = ast.parse(insert_str2).body[0]
+    # insert the node
+    # in ast, direct add node after the statement
+    for module in table.ast.body:
+        if isinstance(module, ast.ClassDef) and module.name == target_node.node_module[-1]:
+            assert len(target_node.input_list) == 1
+            # 结点在init函数中的位置用
+            ast_index = target_node.ast_index[-1]
+            init_func = module.body[0]
+            if not new_node_name is None:
+                module.body[0].body.insert(ast_index[0], init_insert_node)
+            else:
+                # copy target_node
+                init_insert_node = init_func.body[ast_index[0]].value
+                init_str = astunparse.unparse(init_insert_node) # 这句话有问题
+                init_str = op_name + " = " + init_str
+                init_insert_node = ast.parse(init_insert_node).body[0]
+                module.body[0].body.insert(ast_index[0], init_insert_node)
+            # 默认插入的module位置和上一行相同，如果正好插入在module里面的倒数第二行，则还需要修改最后一行
+            # 在construct函数中找到target node的位置，
+            con_func = module.body[1]
+            con_func.body.insert(ast_index[1], construct_insert_node)
+            if ast_index[1] == len(con_func.body) - 3:
+                # need modify the return statement
+                module.body[1].body[-1].value.id = out_name
+    for index in table.nodeList.keys():
+        ast_index = get_ast_index(table, index)
+        table.nodeList[index].set_ast_index(ast_index)
+    node_len = table.node_list_len()
+    insert_index = node_len
+    # update table info
+    # update param_dict
+    get_new_param(irtable = table, param_dict = param_dict, layer_name = new_node_name)
+    return table, param_dict
+
 
 def test_kwargs(table, index, new_node_name, **kargs):
     print("index: ", index)
+
 
 #
 # def replace_node(table, index, new_node):
@@ -470,8 +509,8 @@ def delete_node(table, index, param_dict):
     # only delete the final op in the last module
     for module in table.ast.body:
         if isinstance(module, ast.ClassDef) and module.name == target_node.node_module[-1]:
-            #we suppose that the delete node have only one input
-            assert(len(target_node.input_list) == 1)
+            # we suppose that the delete node have only one input
+            assert (len(target_node.input_list) == 1)
             ast_index = target_node.ast_index[-1]
             del module.body[0].body[ast_index[0]]
             if ast_index[1] == len(module.body[1].body) - 2:
@@ -532,37 +571,165 @@ def pickle_save(model_path):
         new_table = pickle.load(file2)
     return new_table
 
-if __name__ == '__main__':
-    # get python file and ckpt file
-    model_path = f"../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.py"
-    ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
-    model_ast = astor.parse_file(model_path)
+
+def handle_weight(ckpt_path, param_data):
+    # Resnet所包含层的权重看起来都没啥问题
+    # ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
+    # param_data = {"in_channels": 16, "out_channels": 16, "kernel_size": (3, 3)}
     param_dict = mindspore.load_checkpoint(ckpt_path)
-    # print(param_dict.keys())
-    # result_dict = get_code(model_ast)
+    # 声明一个对应的参数
+    weight_np = np.ones(
+        (param_data["out_channels"], param_data["in_channels"], param_data["kernel_size"][0],
+         param_data["kernel_size"][1]))
+    bias_np = np.ones((param_data["out_channels"]))
+    param_weight = Parameter(Tensor(weight_np, mindspore.float32), name="test_weight", requires_grad=True)
+    param_bias = Parameter(Tensor(bias_np, mindspore.float32), name="test_bias", requires_grad=True)
+    # 在字典中添加一行参数
+    param_new_list = []
+    for key in param_dict.keys():
+        param_new = {}
+        if "module5_2.module0_0.batchnorm2d_0" in key:
+            param_new_list.append({"name": "test_weight", "data": param_weight})
+            param_new_list.append({"name": "test_bias", "data": param_bias})
+        param_new["name"] = key
+        param_new["data"] = param_dict[key]
+        param_new_list.append(param_new)
+    return param_new_list
 
-    #construct a dict including module index in model_ast.body
-    module_dict = dict()
-    for item in model_ast.body:
-        if isinstance(item, ast.ClassDef):
-            module_dict[item.name] = item
-    # print(module_dict)
 
-    with open('analyzed_data.json', 'r') as f:
-        analyzed_data = json.load(f)
+def get_weight_shape(layer_name, input_shape):
+    # （batch、in_channels、kernel_wide、kernel_height）
+    input_shape_list = list(input_shape)
+    # contain transpose
+    if "conv1d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2]],
+                "bias": [input_shape_list[1]]}
+    # contain transpose
+    elif "conv2d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3]],
+                "bias": [input_shape_list[1]]}
+    # contain transpose
+    elif "conv3d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3],
+                           input_shape_list[4]],
+                "bias": [input_shape_list[1]]}
+    elif "dense" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1]],
+                "bias": [input_shape_list[1]]}
+    elif "depthwise_conv_2d" in layer_name:
+        return {"weight": [input_shape_list[1], 1, input_shape_list[2], input_shape_list[3]],
+                "bias": [input_shape_list[1]]}
+    elif "separable_conv_1d" in layer_name:
+        return [{"weight": [input_shape_list[1], 1, input_shape_list[2]],
+                 "bias": [input_shape_list[1]]},
+                {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2]],
+                 "bias": [input_shape_list[1]]}]
+    elif "separable_conv_2d" in layer_name:
+        return [{"weight": [input_shape_list[1], 1, input_shape_list[2], input_shape_list[3]],
+                 "bias": [input_shape_list[1]]},
+                {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3]],
+                 "bias": [input_shape_list[1]]}]
+    # contain 1d、2d、3d
+    elif "batch_normalization" in layer_name:
+        return {"gamma": [input_shape_list[1]], "beta": [input_shape_list[1]], "moving_mean": [input_shape_list[1]],
+                "moving_variance": [input_shape_list[1]]}
+    else:
+        pass
 
-    print(len(analyzed_data))
-    table = construct_table(model_ast, analyzed_data, module_dict)
+
+def get_param(ckpt_path, layer_name, input_shape):
+    # ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
+    # layer_name = "conv2d"
+    dict_shape = get_weight_shape(layer_name, input_shape) # (16, 16, 3, 3)
+    param_dict = mindspore.load_checkpoint(ckpt_path)
+    param_weight_list = []
+    for key in param_dict.keys():
+        for l in list(Tensor(param_dict[key]).flatten().asnumpy()):
+            param_weight_list.append(l)
+    mean = np.mean(param_weight_list)
+    std = np.std(param_weight_list)
+    np.random.seed(0)
+    weight_np = np.random.normal(mean, std, dict_shape["weight"])
+    bias_np = np.random.normal(mean, std, dict_shape["bias"])
+    param_weight = Parameter(Tensor(weight_np, mindspore.float32), name="test_weight", requires_grad=True)
+    param_bias = Parameter(Tensor(bias_np, mindspore.float32), name="test_bias", requires_grad=True)
+    return param_weight, param_bias, param_dict
+
+
+# 去做权重的部分：把天杰学长写的“获得新加层的权重。权重的生成算法在原来的lemon里面有”。这边需要对接下。
+# get_weight_shape：可以知道当前插入层各种参数的形状；
+# handle_weight: 往param_dict中加入新的kv
+# 之后根据lemon获得数值，计算正态分布。
+# 获取全部的weight——变成一个list——得到正态分布——再进行随机采样——采样的数就作为新插入的层的参数。
+def get_new_param(irtable, ckpt_path, layer_name): # newly added by hyr
+    nodeList = irtable.nodeList
+    error_flag = 1
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        operator_name_str = node.operator_name
+        if(operator_name_str == layer_name):
+            error_flag = 0
+            input_index_list = node.input_list
+            input_node = nodeList[input_index_list[0]]
+            input_shape = input_node.shape
+            new_param_weight, new_param_bias, param_dict = get_param(ckpt_path, layer_name, input_shape)     
+            #参数保存
+            param_new_list = [] #param_new_list会复制param_dict的所有已有kv，并加入新层的参数，之后返回
+            weight_name = layer_name + '_weight'
+            bias_name = layer_name + '_bias'
+            param_new_list.append({"name": "{}".format(weight_name), "data": new_param_weight})
+            param_new_list.append({"name": "{}".format(bias_name), "data": new_param_bias})
+            for key in param_dict.keys():
+                # 复制param_dict的所有已有kv
+                param_new = {}
+                param_new["name"] = key
+                param_new["data"] = param_dict[key]
+                param_new_list.append(param_new)
+                # 加入新层的参数
+            break   
+        else:
+            continue
+    if(error_flag == 1):
+        print("ERROR: layer {} is not in the table.")
+    return param_new_list
     
     
-    # print(len(table.nodeList))
-    # table.print()
-    # index = 1
-    # # returnlist = get_ast_index(table, index)
-    # # table, param_dict = delete_node(table=table, index=index, param_dict=param_dict)
-    # new_node_name = "conv_2d"
-    # kwargs = {"in_channels":2, "out_channels": 3, "kernel_size":(2, 2)}
-    # table, param_dict = insert_node(table, index, new_node_name, **kwargs)
-    # # test_kwargs(table=table, index=index, )
-    # table.print()
-    # table.save_ast(save_path="result.py")
+    
+    
+
+if __name__ == '__main__':
+  # get python file and ckpt file
+  model_path = f"../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.py"
+  ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
+  model_ast = astor.parse_file(model_path)
+  param_dict = mindspore.load_checkpoint(ckpt_path)
+  # print(param_dict.keys())
+  # result_dict = get_code(model_ast)
+
+  #construct a dict including module index in model_ast.body
+  module_dict = dict()
+  for item in model_ast.body:
+    if isinstance(item, ast.ClassDef):
+      module_dict[item.name] = item
+  # print(module_dict)
+
+  with open('analyzed_data.json', 'r') as f:
+    analyzed_data = json.load(f)
+
+  print(len(analyzed_data))
+  table = construct_table(model_ast, analyzed_data, module_dict)
+  
+  
+  # print(len(table.nodeList))
+  # table.print()
+  # index = 1
+  # # returnlist = get_ast_index(table, index)
+  # # table, param_dict = delete_node(table=table, index=index, param_dict=param_dict)
+  # new_node_name = "conv_2d"
+  # kwargs = {"in_channels":2, "out_channels": 3, "kernel_size":(2, 2)}
+  # table, param_dict = insert_node(table, index, new_node_name, **kwargs)
+  # # test_kwargs(table=table, index=index, )
+  # table.print()
+  # table.save_ast(save_path="result.py")
+    
+

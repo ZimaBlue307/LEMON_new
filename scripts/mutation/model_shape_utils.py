@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 from mindspore import Tensor
 import mindspore
-from scripts.tools.utils import *
+import scripts.tools.utils
 from scripts.logger.lemon_logger import Logger
 from scripts.mutation.model_mutation_operators import *
 
@@ -307,7 +307,7 @@ class ShapeUitls(object):
         mindspore.load_param_into_net(modified_model_object, param_dict)
 
         # 获得数据集的一个切片
-        dataset, dataset_name = DataUtils.get_data_by_exp_with_bk(model_prefix, 4, backend_name, cfg_name)
+        dataset, dataset_name = utils.DataUtils.get_data_by_exp_with_bk(model_prefix, 4, backend_name, cfg_name)
         dataset = dataset.batch(batch_size=4)
         for i, d in enumerate(dataset.create_dict_iterator()):
             if i==0:
@@ -339,5 +339,6 @@ class ShapeUitls(object):
         main_logger.info("INFO: save inter result in {}".format(os.path.join(model_dir, "analyzed_data.json")))
         with open(os.path.join(model_dir, "analyzed_data.json"), 'w') as f:
             json.dump(analyzed_shape, f)
+
         return os.path.join(model_dir, "analyzed_data.json")
 

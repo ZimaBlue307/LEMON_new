@@ -1,5 +1,7 @@
 import pickle
 import sys
+
+import astunparse
 from scripts.mutation.model_mutation_operators import *
 #from model_mutation_operators import *
 import argparse
@@ -9,6 +11,7 @@ import os
 import warnings
 import astor
 import ast
+import mindspore
 
 warnings.filterwarnings("ignore")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2' # 只显示 warning 和 Error
@@ -54,7 +57,7 @@ def generate_model_by_model_mutation(model, operator,mutate_ratio=0.3):
         return None
 
 
-def generate_model_by_inter_mutation(model_path, operator):
+def generate_model_by_inter_mutation(model_path, table, param_dict, operator):
     """
     Generate models using specific mutate operator
     :param model_path: model_path saved in output file ('mindspore1.6.2', mindspore1.7.1 and mindspore1.8.1)
@@ -64,19 +67,19 @@ def generate_model_by_inter_mutation(model_path, operator):
     """
     if operator == 'LC':
         mylogger.info("Generating model using {}".format(operator))
-        return LC_mut(model_path=model)
+        return LC_mut(table=table, param_dict=param_dict)
     elif operator == 'LA':
         mylogger.info("Generating model using {}".format(operator))
-        return LA_mut(model_path=model)
+        return LA_mut(table=table, param_dict=param_dict)
     elif operator == 'LR':
         mylogger.info("Generating model using {}".format(operator))
-        return LR_mut(model_path=model)
+        return LR_mut(table=table, param_dict=param_dict)
     elif operator == 'LS':
         mylogger.info("Generating model using {}".format(operator))
-        return LS_mut(model_path=model)
+        return LS_mut(table=table, param_dict=param_dict)
     elif operator == 'MLA':
         mylogger.info("Generating model using {}".format(operator))
-        return MLA_mut(model_path=model)
+        return MLA_mut(table=table, param_dict=param_dict)
     elif operator == 'None':
         print("just for test")
     else:
@@ -86,11 +89,31 @@ def generate_model_by_inter_mutation(model_path, operator):
 def all_mutate_ops():
     return ['WS','GF','NEB','NAI','NS','ARem','ARep','LA','LC','LR','LS','MLA']
 
-def save_IRtable(model_path, table):
+
+
+def save_weight(param_dict, ckpt_path):
+    param_new_list = list()
+    for key in param_dict.keys():
+        param_new = {}
+        param_new["name"] = key
+        param_new["data"] = param_dict[key]
+        param_new_list.append(param_new)
+    mindspore.save_checkpoint(param_new_list, ckpt_path)
+
+def save_IRtable(model_path, table, param_dict):
     # get model_ast
-    model_ast = astor.parse_file(model_path)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    model_ast = table.ast
+    model_str = astunparse.unparse(model_ast)
+    new_model_name = tuple(model_path.split("/"))[-1]
+    new_model_path = os.path.join(model_path, new_model_name + '.py')
+    mylogger.info("model file save in {}".format(new_model_path))
+    new_ckpt_path = model_path + "/" + new_model_name + ".ckpt"
+    with open(new_model_path, 'w') as f:
+        f.write(model_str)
+    save_weight(param_dict, new_ckpt_path)
     # get analyzed_data
-    analyzed_data = None
     # get module_dict
     module_dict = dict()
     for item in model_ast.body:
@@ -98,10 +121,8 @@ def save_IRtable(model_path, table):
             module_dict[item.name] = item
     # construct our table
     # table = utils.construct_table(model_ast, analyzed_data, module_dict)
-    table_save_tuple = tuple(model_path.split("/"))
-    table_name = table_save_tuple[-1]
-    table_name = tuple(table_name.split("."))[0]
-    table_save_path = '/'.join(table_save_tuple[:-1]) + "/" + table_name + "_table.pkl"
+    table_name = new_model_name + '_table.pkl'
+    table_save_path = os.path.join(model_path, table_name)
     # print(table_save_path)
     with open(table_save_path, 'wb') as file1:
         pickle.dump(table, file1)
@@ -137,12 +158,11 @@ if __name__ == '__main__':
     ckpt_name = os.path.join(model_path, ckpt_name)
 
     # get ir table
-    table_path = os.path.join(model_path, "analyzed_data.json")
+    table_name = model_name + '_table.pkl'
+    table_path = os.path.join(model_path, table_name)
     with open(table_path, 'rb') as f:
-        table = json.load(f)
-    # ckpt_name = tuple(checkpoint_path.split("/"))[-1] 
-    # checkpoint =checkpoint_path + "/" + ckpt_name + ".ckpt"
-    # param_dict = mindspore.load_checkpoint(checkpoint)
+        table = pickle.load(f)
+        
     auto_generate_import_model_script(model_path)
     from scripts.mutation.auto_import_model import *
     origin_model = auto_import_msmodel()
@@ -173,14 +193,24 @@ if __name__ == '__main__':
             # print("table: ", table)
             mylogger.info("-----saving table-----")
             save_IRtable(new_model_path, table)
+    # elif flags.mutate_op in {'ARem, '}:
+    #     mutated_model = generate_model_by_model_mutation(model=origin_model, operator=flags.mutate_op,
+    #                                                      mutate_ratio=mutate_ratio)
+    #     if mutated_model is None:
+    #         raise Exception("Error: Model mutation using {} failed".format(flags.mutate_op))
+    #     else:
+    #
     else:
         # 再考虑层间变异算子
-        mutated_ast = generate_model_by_inter_mutation(model_path=origin_model, operator=flags.mutate_op)
+        # python_model_name = model_name + '.ckpt'
+        # python_model_path = os.path.join(model_path, python_model_name)
+        # model_ast = astor.parse_file(python_model_path)
+        # table = construct_table(model_ast, analyzed_data, module_dict)
+        mutated_table, mutated_param = generate_model_by_inter_mutation(model_path=flags.save_path, table=table, param_dict=param_dict, operator=flags.mutate_op)
         mylogger.info("using inter-layer ops, saving!")
-        new_model_name = tuple(flags.save_path.split("/"))[-1]
-        new_model_path = flags.save_path + "/" + new_model_name + ".py"
+
         
         print("===============now saving IRTable===============")
-        print("new_model_path: ", new_model_path)
-        print("table: ", table)
-        save_IRtable(new_model_path, table)
+        print("new_model_path: ", flags.save_path)
+        print("table: ", mutated_table)
+        save_IRtable(flags.save_path, mutated_table, mutated_param)

@@ -321,7 +321,132 @@ def test_copy_class():
     legal_index_list = [] # shuffle之后的index；
     new_ast = copy_class(model_ast, ir_table, legal_index_list)
     print(new_ast)
-    
+
+def origin_MLA_mut(model, new_layers = None, mutated_layer_indices=None):
+    # mutiple layers addition
+    layer_matching = LayerMatching()
+    if new_layers is not None:
+        for layer in new_layers:
+            if layer not in layer_matching.layer_concats.keys():
+                raise Exception('Layer {} is not supported.'.format(layer))
+    MLA_model = utils.ModelUtils.model_copy(model, 'MLA')
+    insertion_points = _MLA_model_scan(model, new_layers, mutated_layer_indices)
+    mylogger.info(insertion_points)
+    if len(insertion_points.keys()) == 0:
+        mylogger.warning('no appropriate layer to insert')
+        return None
+    for key in insertion_points.keys():
+        mylogger.info('{} can be added after layer {} ({})'
+                             .format(insertion_points[key], key, type(model.layers[key])))
+
+    # use logic: randomly select a new layer available to insert into the layer which can be inserted
+    layers_index_avaliable = list(insertion_points.keys())
+    # layer_index_to_insert = np.max([i for i in insertion_points.keys()])
+    layer_index_to_insert = layers_index_avaliable[np.random.randint(0, len(layers_index_avaliable))]
+    available_new_layers = insertion_points[layer_index_to_insert]
+    layer_name_to_insert = available_new_layers[np.random.randint(0, len(available_new_layers))]
+    mylogger.info('choose to insert {} after {}'.format(layer_name_to_insert, MLA_model.layers[layer_index_to_insert].name))
+    # insert new layers
+    if model.__class__.__name__ == 'Sequential':
+        import keras
+        new_model = keras.models.Sequential()
+        for i, layer in enumerate(MLA_model.layers):
+            new_layer = LayerUtils.clone(layer)
+            # new_layer.name += "_copy"
+            new_model.add(new_layer)
+            if i == layer_index_to_insert:
+                output_shape = layer.output.shape.as_list()
+                layers_to_insert = layer_matching.layer_concats[layer_name_to_insert](output_shape)
+                for layer_to_insert in layers_to_insert:
+                    layer_to_insert.name += "_insert"
+                    mylogger.info(layer_to_insert)
+                    new_model.add(layer_to_insert)
+        new_model.build(MLA_model.input_shape)
+    else:
+        def layer_addition(x, layer):
+            x = layer(x)
+            output_shape = layer.output.shape.as_list()
+            new_layers = layer_matching.layer_concats[layer_name_to_insert](output_shape)
+            for l in new_layers:
+                l.name += "_insert"
+                mylogger.info('insert layer {}'.format(str(l)))
+                x = l(x)
+            return x
+        new_model = utils.ModelUtils.functional_model_operation(MLA_model, operation={MLA_model.layers[layer_index_to_insert].name: layer_addition})
+
+    tuples = []
+    import time
+    start_time = time.time()
+
+    old_model_layers = {}
+    for layer in model.layers:
+        old_model_layers[layer.name] = layer
+
+    new_model_layers = {}
+    for layer in new_model.layers:
+        layer_name = layer.name
+        if layer_name.endswith('_copy_MLA'):
+            key = layer_name[:-9]
+        else:
+            key = layer_name
+        new_model_layers[key] = layer
+
+    for layer_name in old_model_layers.keys():
+        layer_weights = old_model_layers[layer_name].get_weights()
+
+        for sw, w in zip(new_model_layers[layer_name].weights, layer_weights):
+            shape_sw = np.shape(sw)
+            shape_w = np.shape(w)
+            assert len(shape_sw) == len(shape_w)
+            assert shape_sw[0] == shape_w[0]
+            tuples.append((sw, w))
+
+    import keras.backend as K
+    K.batch_set_value(tuples)
+    end_time = time.time()
+    print('set weight cost {}'.format(end_time - start_time))
+
+    return new_model
+
+def insert_node(table, index, new_node_name, **kwargs):
+    '''
+    :param table:
+    :param index:
+    :param new_node_name:
+    :param kwargs:
+    :return:
+    '''
+    target_node = table.nodeList[index]
+    # if the module num is more than mindsporeModel, we need copy the module
+    if len(target_node.node_module) > 1:
+        table, model_ast = copy_module(table=table, index=index, param_dict=param_dict)
+
+    # insert the node after the index
+    layer_utils = LayerUtils()
+    if new_node_name in layer_utils.available_model_level_layers.keys():
+        insert_str = layer_utils.available_model_level_layers[new_node_name](**kwargs)
+        # get op_name
+        op_name = "addNode_" + table.add_node_num
+        out_name = "opt_addNode_" + table.add_node_num
+        table.add_node_num += 1
+        # get full inser str
+        insert_str = op_name + " = " + insert_str
+        insert_node = ast.parse(insert_str).body[0]
+
+        #insert the node
+        # in ast, direct add node after the statement
+        for module in table.ast.body:
+            if isinstance(module, ast.ClassDef) and module.name == target_node.node_module[-1]:
+                assert len(target_node.input_list) == 1
+                ast_index = target_node.ast_index[-1]
+                init_func = module.body[0]
+                init_func.body.insert(ast_index[0], insert_node)
+        node_len = table.node_list_len()
+        insert_index = node_len
+        #默认插入的module位置和上一行相同
+    else:
+        print("{} not implemented!".format(new_node_name))
+
 if __name__ == "__main__":
     model_path = f"../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.py"
     model_ast = astor.parse_file(model_path)

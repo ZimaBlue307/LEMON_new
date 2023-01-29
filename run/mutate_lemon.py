@@ -1,6 +1,7 @@
 # -*-coding:UTF-8-*-
 from scripts.logger.lemon_logger import Logger
 from scripts.tools.mutator_selection_logic import Roulette, MCMC
+from scripts.tools.utils import Table
 import argparse
 import sys
 import ast
@@ -17,6 +18,8 @@ import configparser
 import warnings
 import math
 from scripts.mutation.model_shape_utils import ShapeUitls
+import json
+import astor
 
 np.random.seed(20200501)
 warnings.filterwarnings("ignore")
@@ -119,10 +122,27 @@ def _generate_and_predict(res_dict, filename, mutate_num, mutate_ops, test_size,
     mutator_selector, mutant_selector = mutator_selector_func(mutate_ops), mutant_selector_func([origin_model_name],
                                                                                                 capacity=mutate_num + 1)
     if not os.path.exists(origin_save_path):
+        # copy model file and analyze shape info
         mutate_logger.info(f"start copy origin model from {filename} to {origin_save_path}")
         shutil.copytree(filename, origin_save_path)
-    #model_analyze可以py文件中插装得到shape信息的，得到json文件
-    ShapeUitls.model_analyze(origin_save_path, "mindspore-1.8.1", cfg_name)
+        #model_analyze可以py文件中插装得到shape信息的，得到json文件
+        table_path = ShapeUitls.model_analyze(origin_save_path, "mindspore-1.8.1", cfg_name)
+        with open(table_path, 'rb') as f:
+            analyzed_data = json.load(f)
+        model_prefix = origin_save_path.split("/")[-1]
+        model_path = model_prefix + '.py'
+        model_path = os.path.join(origin_save_path, model_path)
+        network_ast = astor.code_to_ast.parse_file(model_path)
+        # construct table
+        module_dict = Table.construct_module_dict(network_ast)
+        table = Table.construct_table(network_ast, analyzed_data, module_dict)
+        table_save_tuple = tuple(model_path.split("/"))
+        table_name = table_save_tuple[-1]
+        table_name = tuple(table_name.split("."))[0]
+        table_save_path = '/'.join(table_save_tuple[:-1]) + "/" + table_name + '_table.pkl'
+        with open(table_save_path, "wb") as file1:
+            pickle.dump(table, file1)
+
     # print("===========================")
     # print("generate the json of model {}".format(origin_model_name))
     # print("===========================")
