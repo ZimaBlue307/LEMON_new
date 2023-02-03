@@ -1420,10 +1420,11 @@ def insert_node(table, index, param_dict, new_node_name=None):
     target_node = table.nodeList[index]
     # if the module num is more than mindsporeModel, we need copy the module
     if len(target_node.node_module) > 1:
-        table, model_ast = copy_module(table=table, index=index, param_dict=param_dict)
+        table, param_dict = copy_module(table=table, index=index, param_dict=param_dict)
     #get output shape from index
     assert len(target_node.output_list) == 1, "The length of output in current op should be one"
-    output_shape = target_node.output_list[0]
+    output_shape = target_node.shape
+    print(output_shape)
     kwargs = {"input_shape": output_shape}
     # insert the node after the index
     layer_utils = LayerUtils()
@@ -1469,15 +1470,36 @@ def insert_node(table, index, param_dict, new_node_name=None):
             if ast_index[1] == len(con_func.body) - 3:
                 # need modify the return statement
                 module.body[1].body[-1].value.id = out_name
+
+    node_len = table.node_list_len()
+    insert_index = node_len
+
+    # update table info
+    # need update unique_name, output_name
+    target_unique_name = target_node.unique_name
+    prefix = ".".join(target_unique_name.split(".")[:-1])
+    unique_name = prefix + "." + out_name
+    # print(unique_name)
+
+    add_node = Node(index=insert_index, unique_name=unique_name, shape=target_node.shape, operator_name = op_name, node_module=target_node.node_module, input_list=[target_node.index],
+                 output_list=target_node.output_list, output_name=out_name, copy_num=target_node.copy_num,
+                 ast_index = None, ms_class = None)
+    print(add_node)
+    table.add_node(add_node)
+    # new_node = table.nodeList[insert_index]
+    # change the info of the target node and the node after the add node
+    origin_output_list = target_node.output_list
+    table.nodeList[index].output_list = [table.nodeList[insert_index].index]
+    for i in origin_output_list:
+        table.nodeList[i].input_list = [table.nodeList[insert_index].index]
+
     for index in table.nodeList.keys():
         ast_index = get_ast_index(table, index)
         table.nodeList[index].set_ast_index(ast_index)
-    node_len = table.node_list_len()
-    insert_index = node_len
-    # update table info
     # update param_dict
-    get_new_param(irtable = table, param_dict = param_dict, layer_name = new_node_name)
-    return table, param_dict
+    param_new_list = get_new_param(irtable=table, param_dict=param_dict, layer_name=new_node_name, index=insert_index)
+    # get_new_param(irtable, param_dict, layer_name, index, op_name, prefix)
+    return table, param_new_list
 
 
 
@@ -1565,71 +1587,22 @@ def delete_node(table, index, param_dict):
     return table, param_dict
 
 
-def get_new_param(irtable, param_dict, layer_name): # newly added by hyr
-    nodeList = irtable.nodeList
-    error_flag = 1
-    for node_index in nodeList.keys():
-        node = nodeList[node_index]
-        operator_name_str = node.operator_name
-        if(operator_name_str == layer_name):
-            error_flag = 0
-            input_index_list = node.input_list
-            input_node = nodeList[input_index_list[0]]
-            input_shape = input_node.shape
-            new_param_weight, new_param_bias, param_dict = get_param(param_dict, layer_name, input_shape)     
-            #参数保存
-            param_new_list = [] #param_new_list会复制param_dict的所有已有kv，并加入新层的参数，之后返回
-            weight_name = layer_name + '_weight'
-            bias_name = layer_name + '_bias'
-            param_new_list.append({"name": "{}".format(weight_name), "data": new_param_weight})
-            param_new_list.append({"name": "{}".format(bias_name), "data": new_param_bias})
-            for key in param_dict.keys():
-                # 复制param_dict的所有已有kv
-                param_new = {}
-                param_new["name"] = key
-                param_new["data"] = param_dict[key]
-                param_new_list.append(param_new)
-                # 加入新层的参数
-            break   
-        else:
-            continue
-    if(error_flag == 1):
-        print("ERROR: layer {} is not in the table.".format(layer_name))
-    return param_new_list
-
-def get_param(param_dict, layer_name, input_shape):
-    # ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
-    # layer_name = "conv2d"
-    dict_shape = get_weight_shape(layer_name, input_shape) # (16, 16, 3, 3)
-    param_weight_list = []
-    for key in param_dict.keys():
-        for l in list(Tensor(param_dict[key]).flatten().asnumpy()):
-            param_weight_list.append(l)
-    mean = np.mean(param_weight_list)
-    std = np.std(param_weight_list)
-    np.random.seed(0)
-    weight_np = np.random.normal(mean, std, dict_shape["weight"])
-    bias_np = np.random.normal(mean, std, dict_shape["bias"])
-    param_weight = Parameter(Tensor(weight_np, mindspore.float32), name="test_weight", requires_grad=True)
-    param_bias = Parameter(Tensor(bias_np, mindspore.float32), name="test_bias", requires_grad=True)
-    return param_weight, param_bias, param_dict
 
 
 def get_weight_shape(layer_name, input_shape):
     # （batch、in_channels、kernel_wide、kernel_height）
     input_shape_list = list(input_shape)
     # contain transpose
-    if "conv1d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2]],
+    if "conv_1d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3],
                 "bias": [input_shape_list[1]]}
     # contain transpose
-    elif "conv2d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3]],
+    elif "conv_2d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3, 3],
                 "bias": [input_shape_list[1]]}
     # contain transpose
-    elif "conv3d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3],
-                           input_shape_list[4]],
+    elif "conv_3d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3, 3, 3],
                 "bias": [input_shape_list[1]]}
     elif "dense" in layer_name:
         return {"weight": [input_shape_list[1], input_shape_list[1]],
@@ -1652,7 +1625,67 @@ def get_weight_shape(layer_name, input_shape):
         return {"gamma": [input_shape_list[1]], "beta": [input_shape_list[1]], "moving_mean": [input_shape_list[1]],
                 "moving_variance": [input_shape_list[1]]}
     else:
-        pass
+        print("Do not support the layer {}".format(layer_name))
+        return None
+
+
+def get_param(param_dict, layer_name, input_shape):
+    # ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
+    # layer_name = "conv2d"
+    dict_shape = get_weight_shape(layer_name, input_shape) # (16, 16, 3, 3)
+    # param_dict = mindspore.load_checkpoint(ckpt_path)
+    param_weight_list = []
+    for key in param_dict.keys():
+        for l in list(Tensor(param_dict[key]).flatten().asnumpy()):
+            param_weight_list.append(l)
+    mean = np.mean(param_weight_list)
+    std = np.std(param_weight_list)
+    np.random.seed(0)
+    weight_np = np.random.normal(mean, std, dict_shape["weight"])
+    bias_np = np.random.normal(mean, std, dict_shape["bias"])
+    param_weight = Parameter(Tensor(weight_np, mindspore.float32), name="test_weight", requires_grad=True)
+    param_bias = Parameter(Tensor(bias_np, mindspore.float32), name="test_bias", requires_grad=True)
+    return param_weight, param_bias
+
+
+# 去做权重的部分：把天杰学长写的“获得新加层的权重。权重的生成算法在原来的lemon里面有”。这边需要对接下。
+# get_weight_shape：可以知道当前插入层各种参数的形状；
+# handle_weight: 往param_dict中加入新的kv
+# 之后根据lemon获得数值，计算正态分布。
+# 获取全部的weight——变成一个list——得到正态分布——再进行随机采样——采样的数就作为新插入的层的参数。
+def get_new_param(irtable, param_dict, layer_name, index): # newly added by hyr
+    nodeList = irtable.nodeList
+    error_flag = 1
+    param_new_list = []  # param_new_list会复制param_dict的所有已有kv，并加入新层的参数，之后返回
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        if(node.index == index):
+            error_flag = 0
+            input_index_list = node.input_list
+            input_node = nodeList[input_index_list[0]]
+            input_shape = input_node.shape
+            new_param_weight, new_param_bias= get_param(param_dict, layer_name, input_shape)
+            #参数保存
+            unique_name = node.unique_name
+            weight_name = unique_name + '.weight'
+            print(weight_name)
+            bias_name = unique_name + '.bias'
+            param_new_list.append({"name": "{}".format(weight_name), "data": new_param_weight})
+            param_new_list.append({"name": "{}".format(bias_name), "data": new_param_bias})
+            for key in param_dict.keys():
+                # 复制param_dict的所有已有kv
+                param_new = {}
+                param_new["name"] = key
+                param_new["data"] = param_dict[key]
+                param_new_list.append(param_new)
+                # 加入新层的参数
+            break
+        else:
+            continue
+    if(error_flag == 1):
+        print("ERROR: layer {} is not in the table.")
+    return param_new_list
+
 
 if __name__ == '__main__':
     pass

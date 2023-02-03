@@ -277,6 +277,7 @@ def return_construct_op_name(node):
 
 
 def search_construct_statement(table, index):
+
     node = table.nodeList[index]
     module_list = node.node_module
     prefix = node.unique_name.split(".")[:-1]
@@ -337,6 +338,7 @@ def copy_module(table, index, param_dict):
     print(module_list)
     new_module_list = ['MindSporeModel']
     add_list = list()
+    tmp_table = copy.deepcopy(table)
     for i in range(1, len(module_list)):
         module_name = module_list[i]
 
@@ -396,13 +398,16 @@ def copy_module(table, index, param_dict):
     # copy param
     # new_prefix = target_node.unique_name.split(".")[:-1]
     # new_prefix = ".".join(new_prefix)
-    # added_param = dict()
-    # for key in enumerate(param_dict):
-    #     if prefix in key:
-    #         param = copy.deepcopy(param_dict[key])
-    #         new_op_name = key.replace(prefix, new_prefix)
-    #         added_param[new_op_name] = param
-    # param_dict = param_dict + added_param
+    # origin_prefix = ".".join(tmp_table.nodeList[index].unique_name.split(".")[:-1])
+    # for i in indices:
+    #     operator_name = tmp_table.nodeList[i].operator_name
+    #     new_operator_name = origin_prefix + '.' + operator_name
+    #     for key in param_dict.keys():
+    #         if operator_name in key:
+    #             suffix = key.split(".")[-1]
+    #             param_dict[new_prefix + '.' + operator_name + '.' + suffix] = param_dict[key]
+    #
+
 
     return table, param_dict
 
@@ -420,14 +425,15 @@ def insert_node(table, index, param_dict, new_node_name=None):
     target_node = table.nodeList[index]
     # if the module num is more than mindsporeModel, we need copy the module
     if len(target_node.node_module) > 1:
-        table, model_ast = copy_module(table=table, index=index, param_dict=param_dict)
+        table, param_dict = copy_module(table=table, index=index, param_dict=param_dict)
     #get output shape from index
     assert len(target_node.output_list) == 1, "The length of output in current op should be one"
-    output_shape = target_node.output_list[0]
+    output_shape = target_node.shape
+    print(output_shape)
     kwargs = {"input_shape": output_shape}
     # insert the node after the index
     layer_utils = LayerUtils()
-    op_name = "self.addNode_" + str(table.add_node_num)
+    op_name = "addNode_" + str(table.add_node_num)
     out_name = "opt_addNode_" + str(table.add_node_num)
     if new_node_name in layer_utils.available_model_level_layers.keys():
         insert_str = layer_utils.available_model_level_layers[new_node_name](**kwargs)
@@ -439,7 +445,7 @@ def insert_node(table, index, param_dict, new_node_name=None):
     table.add_node_num += 1
     # get full inser str
     if not new_node_name is None:
-        insert_str = op_name + " = " + insert_str
+        insert_str = 'self.' + op_name + " = " + insert_str
         init_insert_node = ast.parse(insert_str).body[0]
     # get out_opt_name of target node
     out_target_name = target_node.unique_name.split(".")[-1]
@@ -454,35 +460,69 @@ def insert_node(table, index, param_dict, new_node_name=None):
             ast_index = target_node.ast_index[-1]
             init_func = module.body[0]
             if not new_node_name is None:
-                module.body[0].body.insert(ast_index[0], init_insert_node)
+                module.body[0].body.insert(ast_index[0] + 1, init_insert_node)
             else:
                 # copy target_node
                 init_insert_node = init_func.body[ast_index[0]].value
                 init_str = astunparse.unparse(init_insert_node) # 这句话有问题
                 init_str = op_name + " = " + init_str
                 init_insert_node = ast.parse(init_insert_node).body[0]
-                module.body[0].body.insert(ast_index[0], init_insert_node)
+                module.body[0].body.insert(ast_index[0] + 1, init_insert_node)
             # 默认插入的module位置和上一行相同，如果正好插入在module里面的倒数第二行，则还需要修改最后一行
             # 在construct函数中找到target node的位置，
             con_func = module.body[1]
-            con_func.body.insert(ast_index[1], construct_insert_node)
+            con_func.body.insert(ast_index[1] + 1, construct_insert_node)
             if ast_index[1] == len(con_func.body) - 3:
                 # need modify the return statement
                 module.body[1].body[-1].value.id = out_name
+
+    node_len = table.node_list_len()
+    insert_index = node_len
+
+    # update table info
+    # need update unique_name, output_name
+    target_unique_name = target_node.unique_name
+    prefix = ".".join(target_unique_name.split(".")[:-1])
+    unique_name = prefix + "." + out_name
+    # print(unique_name)
+
+    add_node = Node(index=insert_index, unique_name=unique_name, shape=target_node.shape, operator_name = op_name, node_module=target_node.node_module, input_list=[target_node.index],
+                 output_list=target_node.output_list, output_name=out_name, copy_num=target_node.copy_num,
+                 ast_index = None, ms_class = None)
+    print(add_node)
+    table.add_node(add_node)
+    # new_node = table.nodeList[insert_index]
+    # change the info of the target node and the node after the add node
+    origin_output_list = target_node.output_list
+    table.nodeList[index].output_list = [table.nodeList[insert_index].index]
+    for i in origin_output_list:
+        table.nodeList[i].input_list = [table.nodeList[insert_index].index]
+
     for index in table.nodeList.keys():
         ast_index = get_ast_index(table, index)
         table.nodeList[index].set_ast_index(ast_index)
-    node_len = table.node_list_len()
-    insert_index = node_len
-    # update table info
     # update param_dict
-    get_new_param(irtable = table, param_dict = param_dict, layer_name = new_node_name)
+
+    param_new_list = get_new_param(irtable=table, param_dict=param_dict, layer_name=new_node_name, op_name= op_name, index=insert_index, prefix=prefix)
+    return table, param_new_list
+
+def replace_node(table, index1, index2, param_dict):
+    target_node1 = table.nodeList[index1]
+    target_node2 = table.nodeList[index2]
+
+    if len(target_node1.node_module) > 1:
+        table, param_dict = copy_module(table=table, index=index1, param_dict=param_dict)
+
+    if len(target_node2.node_module) > 1:
+        table, param_dict = copy_module(table=table, index=index2, param_dict=param_dict)
+
+    op_name_1 = "addNode_" + str(table.add_node_num)
+    out_name = "opt_addNode_" + str(table.add_node_num)
+
+    table.add_node_num += 1
+
+
     return table, param_dict
-
-
-def test_kwargs(table, index, new_node_name, **kargs):
-    print("index: ", index)
-
 
 #
 # def replace_node(table, index, new_node):
@@ -512,7 +552,7 @@ def delete_node(table, index, param_dict):
             # we suppose that the delete node have only one input
             assert (len(target_node.input_list) == 1)
             ast_index = target_node.ast_index[-1]
-            del module.body[0].body[ast_index[0]]
+            # del module.body[0].body[ast_index[0]]
             if ast_index[1] == len(module.body[1].body) - 2:
                 # change the final return name
                 input_node_index = table.nodeList[inputs[0]].ast_index[-1][1]
@@ -548,6 +588,7 @@ def delete_node(table, index, param_dict):
         table.nodeList[index].set_ast_index(ast_index)
 
     return table, param_dict
+
 
 
 def pickle_save(model_path):
@@ -601,17 +642,16 @@ def get_weight_shape(layer_name, input_shape):
     # （batch、in_channels、kernel_wide、kernel_height）
     input_shape_list = list(input_shape)
     # contain transpose
-    if "conv1d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2]],
+    if "conv_1d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3],
                 "bias": [input_shape_list[1]]}
     # contain transpose
-    elif "conv2d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3]],
+    elif "conv_2d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3, 3],
                 "bias": [input_shape_list[1]]}
     # contain transpose
-    elif "conv3d" in layer_name:
-        return {"weight": [input_shape_list[1], input_shape_list[1], input_shape_list[2], input_shape_list[3],
-                           input_shape_list[4]],
+    elif "conv_3d" in layer_name:
+        return {"weight": [input_shape_list[1], input_shape_list[1], 3, 3, 3],
                 "bias": [input_shape_list[1]]}
     elif "dense" in layer_name:
         return {"weight": [input_shape_list[1], input_shape_list[1]],
@@ -634,14 +674,15 @@ def get_weight_shape(layer_name, input_shape):
         return {"gamma": [input_shape_list[1]], "beta": [input_shape_list[1]], "moving_mean": [input_shape_list[1]],
                 "moving_variance": [input_shape_list[1]]}
     else:
-        pass
+        print("Do not support the layer {}".format(layer_name))
+        return None
 
 
-def get_param(ckpt_path, layer_name, input_shape):
+def get_param(param_dict, layer_name, input_shape):
     # ckpt_path = f'../origin_model/ms_model/resnet20_cifar100/resnet20_cifar100_origin.ckpt'
     # layer_name = "conv2d"
     dict_shape = get_weight_shape(layer_name, input_shape) # (16, 16, 3, 3)
-    param_dict = mindspore.load_checkpoint(ckpt_path)
+    # param_dict = mindspore.load_checkpoint(ckpt_path)
     param_weight_list = []
     for key in param_dict.keys():
         for l in list(Tensor(param_dict[key]).flatten().asnumpy()):
@@ -653,7 +694,7 @@ def get_param(ckpt_path, layer_name, input_shape):
     bias_np = np.random.normal(mean, std, dict_shape["bias"])
     param_weight = Parameter(Tensor(weight_np, mindspore.float32), name="test_weight", requires_grad=True)
     param_bias = Parameter(Tensor(bias_np, mindspore.float32), name="test_bias", requires_grad=True)
-    return param_weight, param_bias, param_dict
+    return param_weight, param_bias
 
 
 # 去做权重的部分：把天杰学长写的“获得新加层的权重。权重的生成算法在原来的lemon里面有”。这边需要对接下。
@@ -661,22 +702,26 @@ def get_param(ckpt_path, layer_name, input_shape):
 # handle_weight: 往param_dict中加入新的kv
 # 之后根据lemon获得数值，计算正态分布。
 # 获取全部的weight——变成一个list——得到正态分布——再进行随机采样——采样的数就作为新插入的层的参数。
-def get_new_param(irtable, ckpt_path, layer_name): # newly added by hyr
+def get_new_param(irtable, param_dict, layer_name, index, op_name, prefix): # newly added by hyr
     nodeList = irtable.nodeList
     error_flag = 1
+    param_new_list = []  # param_new_list会复制param_dict的所有已有kv，并加入新层的参数，之后返回
     for node_index in nodeList.keys():
         node = nodeList[node_index]
         operator_name_str = node.operator_name
-        if(operator_name_str == layer_name):
+        # print(operator_name_str)
+
+        if(node.index == index):
             error_flag = 0
             input_index_list = node.input_list
             input_node = nodeList[input_index_list[0]]
             input_shape = input_node.shape
-            new_param_weight, new_param_bias, param_dict = get_param(ckpt_path, layer_name, input_shape)     
+            new_param_weight, new_param_bias= get_param(param_dict, layer_name, input_shape)
             #参数保存
-            param_new_list = [] #param_new_list会复制param_dict的所有已有kv，并加入新层的参数，之后返回
-            weight_name = layer_name + '_weight'
-            bias_name = layer_name + '_bias'
+
+            weight_name = prefix + '.' + op_name + '.weight'
+            print(weight_name)
+            bias_name = prefix + '.' + op_name + '.bias'
             param_new_list.append({"name": "{}".format(weight_name), "data": new_param_weight})
             param_new_list.append({"name": "{}".format(bias_name), "data": new_param_bias})
             for key in param_dict.keys():
@@ -718,16 +763,33 @@ if __name__ == '__main__':
 
   print(len(analyzed_data))
   table = construct_table(model_ast, analyzed_data, module_dict)
+
+  # insert_node(table=table, index=)
   
   
   # print(len(table.nodeList))
-  # table.print()
-  # index = 1
+  table.print()
+  index = 2
+
+
   # # returnlist = get_ast_index(table, index)
   # # table, param_dict = delete_node(table=table, index=index, param_dict=param_dict)
-  # new_node_name = "conv_2d"
+  new_node_name = "conv_2d"
   # kwargs = {"in_channels":2, "out_channels": 3, "kernel_size":(2, 2)}
-  # table, param_dict = insert_node(table, index, new_node_name, **kwargs)
+  table, param_list = insert_node(table, index, param_dict, new_node_name)
+  table.save_ast(save_path="result.py")
+  mindspore.save_checkpoint(param_list, "new_checkpoint.ckpt")
+
+  from result import MindSporeModel
+  new_network = MindSporeModel()
+  new_param = mindspore.load_checkpoint("new_checkpoint.ckpt")
+  mindspore.load_param_into_net(new_network, new_param)
+
+  # test new model
+
+
+
+
   # # test_kwargs(table=table, index=index, )
   # table.print()
   # table.save_ast(save_path="result.py")

@@ -261,7 +261,7 @@ def _LC_and_LR_scan(irtable):
     return available_layer_indices
 
 
-def _LS_scan(model, irtable):
+def _LS_scan(irtable):
     shape_dict = {}
     nodeList = irtable.nodeList
     for node_index in nodeList.keys():
@@ -568,10 +568,22 @@ def ARem_mut(model, irtable, param_dict, mutated_layer_indices=None):
         op_class_str = node.ms_class #这里的node里的attribute的具体名字忘了
         if(is_str_in_activation_list(op_class_str)):
             new_table, new_param_dict = delete_node(table = irtable, index = node_index, param_dict = param_dict)
-            break
+    return new_table, new_param_dict
 
-
-
+# origin code
+def ARep_mut(model, irtable, param_dict, new_activations=None, mutated_layer_indices=None):
+    ARep_model = utils.ModelUtils.model_copy(model, 'ARep')
+    nodeList = irtable.nodeList
+    mutated_layer_indices = np.range(len(nodeList) - 1) if mutated_layer_indices is None else mutated_layer_indices
+    np.random.shuffle(mutated_layer_indices)
+    _assert_indices(mutated_layer_indices, len(nodeList))
+    for node_index in nodeList.keys():
+        node = nodeList[node_index]
+        op_class_str = node.ms_class #这里的node里的attribute的具体名字忘了
+        if(is_str_in_activation_list(op_class_str)):
+            new_table, new_param_dict = relpace_node()
+            #暂定relpace_node的输入：irtable, node_index, param_dict, old_node, new_node;
+    return new_table, new_param_dict
 
 # Layer Addition: selects a layer, whose input shape and
 # output shape are consistent and then inserts it to a 
@@ -602,9 +614,9 @@ def LA_mut(table, param_dict, new_layers=None, mutated_layer_indices=None, **kwa
 
     #还需要根据index计算当前layer需要的参数
     
-    
-    table, param_dict = insert_node(table, layer_index_to_insert, param_dict, layer_name_to_insert)
-    return table, param_dict
+
+    table, param_list = insert_node(table, layer_index_to_insert, param_dict, layer_name_to_insert)
+    return table, param_list
 
 
 
@@ -635,19 +647,17 @@ def MLA_mut(table, param_dict, new_layers = None, mutated_layer_indices=None, **
 #layer Copy: copies a layer, whose input shape and out-put 
 #shape are consistent, and then inserts the copied layer
 #to concatenate the original layer
-def LC_mut(table, param_dict, new_layers = None, mutated_layer_indices=None, **kwargs):
-    LC_model = utils.ModelUtils.model_copy(model, 'LC')
-    mapping_index_node = dict()#key是数字索引，value是node
-    mapping_node_parent = dict()#key是数字索引，value是数字索引对应node的parent_tree
-    #scan先暂时放着
-    available_layer_indices = _LC_and_LR_scan(LC_model, mutated_layer_indices, mapping_index_node, mapping_node_parent)
+def LC_mut(table, param_dict, new_layers = None, mutated_layer_indices=None):
+
+    available_layer_indices = _LC_and_LR_scan(table)
 
     if len(available_layer_indices) == 0:
         mylogger.warning('no appropriate node to copy (input and output shape should be same)')
         return None
 
-    table, param_dict = insert_node(table, param_dict, layer_index_to_insert, layer_name_to_insert)
-    return table, param_dict
+    layer_index_to_insert = available_layer_indices[np.random.randint(0, len(available_layer_indices))]
+    table, param_list = insert_node(table, param_dict, layer_index_to_insert)
+    return table, param_list
 
 
 def delete_node(table, index, param_dict):
@@ -712,37 +722,17 @@ def delete_node(table, index, param_dict):
     return table, param_dict
 
 #Layer Removal: removes a layer, whose input shape and output shape are consistent
-def LR_mut(model_path, mutated_layer_indices=None):
-    # LR_model = utils.ModelUtils.model_copy(model, 'LR') #model copy function, jump for now
-    model_dir = os.path.dirname(model_path)
-    model_name = model_path.split("/")[-1]
-    table_name = tuple(model_name.split("."))[0] + '_table.pkl'
-    with open(table_name, 'r') as f:
-        irtable = pickle.load(os.path.join(model_dir, table_name))
-    # scan函数先放着；
-    available_layer_indices = _LC_and_LR_scan(irtable)
+def LR_mut(table, param_dict, mutated_layer_indices=None):
+    available_layer_indices = _LC_and_LR_scan(table)
+
     if len(available_layer_indices) == 0:
-        mylogger.warning('no appropriate node to remove (input and output shape should be same)')
+        mylogger.warning('no appropriate node to delete (input and output shape should be same)')
         return None
-    # use logic: remove the layer with last index in available_layer_indices
-    remove_layer_index = available_layer_indices[-1]
-    LR_node = mapping_index_node[remove_layer_index]
-    mylogger.info('choose to remove node {}'.format(LR_node.get_name()))
-    #这里没有修改node的名称，在lemon_raw里有修改；
-    #这里应该不需要区分sequential和非sequential了
-    parent_tree = mapping_node_parent[remove_layer_index]
-    LR_node_inputs = LR_node.get_inputs()
-    LR_node_outputs = LR_node.get_users()
-    LR_node_input = LR_node_inputs[0]
-    LR_node_output = LR_node_outputs[0]
-    LR_node_output.set_arg_by_node(0, LR_node_input)
-    parent_tree.erase_node(LR_node)
-    LR_tree.set_saved_file_name("./tmp/test_LR.py")
-    LR_tree.save_network_to_file()
-    LR_global_vars = LR_tree._symbol_tree._global_vars
-    from tmp.test_LR import MindsporeModel
-    LR_new_model = MindsporeModel(LR_global_vars)
-    return LR_new_model
+
+    layer_index_to_delete = available_layer_indices[np.random.randint(0, len(available_layer_indices))]
+    table, param_list = delete_node(table=table, index=layer_index_to_delete,  param_dict=param_dict)
+
+    return table, param_list
 
 #Layer Switch: switches two layers, both of which have the same input shape and output shape
 def LS_mut(model):

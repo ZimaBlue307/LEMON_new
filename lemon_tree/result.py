@@ -71,6 +71,18 @@ class Module5(nn.Cell):
         opt_add_3 = self.add(opt_add_1, opt_conv2d_2)
         return opt_add_3
 
+class Module3(nn.Cell):
+
+    def __init__(self, conv2d_0_in_channels, conv2d_0_out_channels, module0_0_batchnorm2d_0_num_features, module0_0_conv2d_2_in_channels, module0_0_conv2d_2_out_channels, module0_0_conv2d_2_stride, module0_0_conv2d_4_in_channels, module0_0_conv2d_4_out_channels):
+        super(Module3, self).__init__()
+        self.module0_0 = Module0(batchnorm2d_0_num_features=module0_0_batchnorm2d_0_num_features, conv2d_2_in_channels=module0_0_conv2d_2_in_channels, conv2d_2_out_channels=module0_0_conv2d_2_out_channels, conv2d_2_stride=module0_0_conv2d_2_stride, conv2d_4_in_channels=module0_0_conv2d_4_in_channels, conv2d_4_out_channels=module0_0_conv2d_4_out_channels)
+        self.conv2d_0 = nn.Conv2d(in_channels=conv2d_0_in_channels, out_channels=conv2d_0_out_channels, kernel_size=(1, 1), stride=(1, 1), padding=0, pad_mode='valid', dilation=(1, 1), group=1, has_bias=True)
+
+    def construct(self, x):
+        module0_0_opt = self.module0_0(x)
+        opt_conv2d_0 = self.conv2d_0(module0_0_opt)
+        return opt_conv2d_0
+
 class MindSporeModel(nn.Cell):
 
     def __init__(self):
@@ -79,7 +91,6 @@ class MindSporeModel(nn.Cell):
         self.module2_0 = Module2_1(conv2d_0_in_channels=3, conv2d_0_kernel_size=(3, 3), conv2d_0_padding=(1, 1, 1, 1), conv2d_0_pad_mode='pad')
         self.conv2d_3 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=(1, 1), stride=(1, 1), padding=0, pad_mode='valid', dilation=(1, 1), group=1, has_bias=True)
         self.module2_1 = Module2(conv2d_0_in_channels=16, conv2d_0_kernel_size=(1, 1), conv2d_0_padding=0, conv2d_0_pad_mode='valid')
-        self.module2_1_copy = Module2_copy(conv2d_0_in_channels=16, conv2d_0_kernel_size=(1, 1), conv2d_0_padding=0, conv2d_0_pad_mode='valid')
         self.module2_2 = Module2(conv2d_0_in_channels=16, conv2d_0_kernel_size=(3, 3), conv2d_0_padding=(1, 1, 1, 1), conv2d_0_pad_mode='pad')
         self.conv2d_8 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=(1, 1), stride=(1, 1), padding=0, pad_mode='valid', dilation=(1, 1), group=1, has_bias=True)
         self.module5_0 = Module5(conv2d_0_in_channels=16, conv2d_0_out_channels=64, conv2d_2_in_channels=16, conv2d_2_out_channels=64, module0_0_batchnorm2d_0_num_features=64, module0_0_conv2d_2_in_channels=64, module0_0_conv2d_2_out_channels=16, module0_0_conv2d_2_stride=(1, 1), module0_0_conv2d_4_in_channels=16, module0_0_conv2d_4_out_channels=16, module0_1_batchnorm2d_0_num_features=64, module0_1_conv2d_2_in_channels=64, module0_1_conv2d_2_out_channels=16, module0_1_conv2d_2_stride=(1, 1), module0_1_conv2d_4_in_channels=16, module0_1_conv2d_4_out_channels=16)
@@ -129,24 +140,16 @@ class MindSporeModel(nn.Cell):
         opt_softmax_83 = self.softmax_83(opt_add_82)
         return opt_softmax_83
 
-class Module3(nn.Cell):
-
-    def __init__(self, conv2d_0_in_channels, conv2d_0_out_channels, module0_0_batchnorm2d_0_num_features, module0_0_conv2d_2_in_channels, module0_0_conv2d_2_out_channels, module0_0_conv2d_2_stride, module0_0_conv2d_4_in_channels, module0_0_conv2d_4_out_channels):
-        super(Module3, self).__init__()
-        self.module0_0 = Module0(batchnorm2d_0_num_features=module0_0_batchnorm2d_0_num_features, conv2d_2_in_channels=module0_0_conv2d_2_in_channels, conv2d_2_out_channels=module0_0_conv2d_2_out_channels, conv2d_2_stride=module0_0_conv2d_2_stride, conv2d_4_in_channels=module0_0_conv2d_4_in_channels, conv2d_4_out_channels=module0_0_conv2d_4_out_channels)
-        self.conv2d_0 = nn.Conv2d(in_channels=conv2d_0_in_channels, out_channels=conv2d_0_out_channels, kernel_size=(1, 1), stride=(1, 1), padding=0, pad_mode='valid', dilation=(1, 1), group=1, has_bias=True)
-
-    def construct(self, x):
-        module0_0_opt = self.module0_0(x)
-        opt_conv2d_0 = self.conv2d_0(module0_0_opt)
-        return opt_conv2d_0
-
 class Module2_1(nn.Cell):
 
     def __init__(self, conv2d_0_in_channels, conv2d_0_kernel_size, conv2d_0_padding, conv2d_0_pad_mode):
         super(Module2_1, self).__init__()
+        self.conv2d_0 = nn.Conv2d(in_channels=conv2d_0_in_channels, out_channels=16, kernel_size=conv2d_0_kernel_size, stride=(1, 1), padding=conv2d_0_padding, pad_mode=conv2d_0_pad_mode, dilation=(1, 1), group=1, has_bias=True)
         self.relu_1 = nn.ReLU()
+        self.addNode_0 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, pad_mode='same', padding=0, dilation=1, group=1, has_bias=False, weight_init='normal', bias_init='zeros', data_format='NCHW')
 
     def construct(self, x):
-        opt_relu_1 = self.relu_1(x)
-        return opt_relu_1
+        opt_conv2d_0 = self.conv2d_0(x)
+        opt_relu_1 = self.relu_1(opt_conv2d_0)
+        opt_addNode_0 = self.addNode_0(opt_relu_1)
+        return opt_addNode_0

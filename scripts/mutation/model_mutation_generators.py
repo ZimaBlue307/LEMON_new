@@ -100,7 +100,7 @@ def save_weight(param_dict, ckpt_path):
         param_new_list.append(param_new)
     mindspore.save_checkpoint(param_new_list, ckpt_path)
 
-def save_IRtable(model_path, table, param_dict):
+def save_IRtable(model_path, table, param_list):
     # get model_ast
     if not os.path.exists(model_path):
         os.makedirs(model_path)
@@ -112,7 +112,8 @@ def save_IRtable(model_path, table, param_dict):
     new_ckpt_path = model_path + "/" + new_model_name + ".ckpt"
     with open(new_model_path, 'w') as f:
         f.write(model_str)
-    save_weight(param_dict, new_ckpt_path)
+    # save_weight(param_dict, new_ckpt_path)
+    mindspore.save_checkpoint(param_list, new_ckpt_path)
     # get analyzed_data
     # get module_dict
     module_dict = dict()
@@ -206,11 +207,11 @@ if __name__ == '__main__':
         # python_model_path = os.path.join(model_path, python_model_name)
         # model_ast = astor.parse_file(python_model_path)
         # table = construct_table(model_ast, analyzed_data, module_dict)
-        mutated_table, mutated_param = generate_model_by_inter_mutation(model_path=flags.save_path, table=table, param_dict=param_dict, operator=flags.mutate_op)
+        mutated_table, mutated_param_list = generate_model_by_inter_mutation(model_path=flags.save_path, table=table, param_dict=param_dict, operator=flags.mutate_op)
         mylogger.info("using inter-layer ops, saving!")
 
         
         print("===============now saving IRTable===============")
         print("new_model_path: ", flags.save_path)
         print("table: ", mutated_table)
-        save_IRtable(flags.save_path, mutated_table, mutated_param)
+        save_IRtable(flags.save_path, mutated_table, mutated_param_list)

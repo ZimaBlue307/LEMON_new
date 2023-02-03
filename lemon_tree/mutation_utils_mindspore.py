@@ -83,9 +83,9 @@ class LayerUtils:
 
     @staticmethod
     def dense(input_shape,
-              weight_init='normal', bias_init='zeros', has_bias=True, activation=None):
+              weight_init='normal', bias_init='zeros', has_bias='True', activation='None'):
         layer_str = "nn.Dense(in_channels={}, out_channels={}, " \
-                    "weight_init={}, bias_init={}, has_bias={}, " \
+                    "weight_init='{}', bias_init='{}', has_bias={}, " \
                     "activation={})".format(input_shape[1], input_shape[1], weight_init,
                                             bias_init, has_bias, activation)
 
@@ -102,12 +102,12 @@ class LayerUtils:
     @staticmethod
     def conv1d(input_shape,
                kernel_size=3, stride=1, pad_mode="same",
-               padding=0, dilation=1, group=1, has_bias=False,
+               padding=0, dilation=1, group=1, has_bias='False',
                weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv1d(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -121,12 +121,12 @@ class LayerUtils:
     @staticmethod
     def conv_1d_transpose(input_shape,
                           kernel_size=3, stride=1, pad_mode="same",
-                          padding=0, dilation=1, group=1, has_bias=False,
+                          padding=0, dilation=1, group=1, has_bias='False',
                           weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv1dTranspose(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -143,9 +143,9 @@ class LayerUtils:
                padding=0, dilation=1, group=1, has_bias=False,
                weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv2d(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -165,17 +165,17 @@ class LayerUtils:
                           weight_init="normal", bias_init="zeros"):
         # in_channels、out_channels、group三个参数相等
         layer_str1 = "nn.Conv1d(in_channels={}, out_channels={}, " \
-                     "kernel_size={}, stride={}, pad_mode={}, " \
-                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                     "kernel_size={}, stride={}, pad_mode='{}', " \
+                     "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                     "bias_init='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                             stride, pad_mode, padding, dilation, input_shape[1],
                                             has_bias, weight_init, bias_init)
 
         # kernel_size = 1，group回到默认值1
         layer_str2 = "nn.Conv1d(in_channels={}, out_channels={}, " \
-                     "kernel_size={}, stride={}, pad_mode={}, " \
-                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                     "kernel_size={}, stride={}, pad_mode='{}', " \
+                     "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                     "bias_init='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                             stride, pad_mode, padding, dilation, group,
                                             has_bias, weight_init, bias_init)
 
@@ -190,13 +190,13 @@ class LayerUtils:
                         def __init__(self): \
                             super(Seperable_Conv_Module, self).__init__() \
                             self.conv2d_0 = nn.Conv1d(in_channels={}, out_channels={}, " \
-                                                "kernel_size={}, stride={}, pad_mode={}, " \
-                                                "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                                                "bias_init={}) \
+                                                "kernel_size={}, stride={}, pad_mode='{}', " \
+                                                "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                                                "bias_init='{}') \
                             self.conv2d_1 = nn.Conv1d(in_channels={}, out_channels={}, " \
-                                                "kernel_size={}, stride={}, pad_mode={}, " \
-                                                "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                                                "bias_init={}) \
+                                                "kernel_size={}, stride={}, pad_mode='{}', " \
+                                                "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                                                "bias_init='{}') \
                         def construct(self, x): \
                             opt_conv2d_0 = self.conv2d_0(x) \
                             opt_conv2d_1 = self.conv2d_1(opt_conv2d_0) \
@@ -219,17 +219,17 @@ class LayerUtils:
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         # in_channels、out_channels、group三个参数相等
         layer_str1 = "nn.Conv2d(in_channels={}, out_channels={}, " \
-                     "kernel_size={}, stride={}, pad_mode={}, " \
-                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                     "kernel_size={}, stride={}, pad_mode='{}', " \
+                     "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                     "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                             stride, pad_mode, padding, dilation, input_shape[1],
                                                             has_bias, weight_init, bias_init, data_format)
 
         # kernel_size = 1，group回到默认值1
         layer_str2 = "nn.Conv2d(in_channels={}, out_channels={}, " \
-                     "kernel_size={}, stride={}, pad_mode={}, " \
-                     "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                     "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                     "kernel_size={}, stride={}, pad_mode='{}', " \
+                     "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                     "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                             stride, pad_mode, padding, dilation, group,
                                                             has_bias, weight_init, bias_init, data_format)
 
@@ -248,9 +248,9 @@ class LayerUtils:
                           padding=0, dilation=1, has_bias=False,
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv2d(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, input_shape[1],
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -268,9 +268,9 @@ class LayerUtils:
                           padding=0, dilation=1, group=1, has_bias=False,
                           weight_init="normal", bias_init="zeros"):
         layer_str = "nn.Conv2dTranspose(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                            stride, pad_mode, padding, dilation, group,
                                            has_bias, weight_init, bias_init)
 
@@ -288,9 +288,9 @@ class LayerUtils:
                padding=0, dilation=1, group=1, has_bias=False,
                weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv3d(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -310,9 +310,9 @@ class LayerUtils:
                           padding=0, dilation=1, group=1, output_padding=0, has_bias=False,
                           weight_init="normal", bias_init="zeros", data_format="NCHW"):
         layer_str = "nn.Conv3dTranspose(in_channels={}, out_channels={}, " \
-                    "kernel_size={}, stride={}, pad_mode={}, " \
-                    "padding={}, dilation={}, group={}, output_padding={}, has_bias={}, weight_init={}, " \
-                    "bias_init={}, data_format={})".format(input_shape[1], input_shape[1], kernel_size,
+                    "kernel_size={}, stride={}, pad_mode='{}', " \
+                    "padding={}, dilation={}, group={}, output_padding={}, has_bias={}, weight_init='{}', " \
+                    "bias_init='{}', data_format='{}')".format(input_shape[1], input_shape[1], kernel_size,
                                                            stride, pad_mode, padding, dilation, group, output_padding,
                                                            has_bias, weight_init, bias_init, data_format)
 
@@ -329,7 +329,7 @@ class LayerUtils:
     @staticmethod
     def max_pooling_1d(kernel_size=1, stride=1, pad_mode="same"):
         layer_str = "nn.MaxPool1d(kernel_size={}, stride={}, " \
-                    "pad_mode={})".format(kernel_size, stride, pad_mode)
+                    "pad_mode='{}')".format(kernel_size, stride, pad_mode)
 
         return [layer_str]
 
@@ -341,7 +341,7 @@ class LayerUtils:
     @staticmethod
     def max_pooling_2d(kernel_size=1, stride=1, pad_mode="same", data_format="NCHW"):
         layer_str = "nn.MaxPool2d(kernel_size={}, stride={}, " \
-                    "pad_mode={}, data_format={})".format(kernel_size, stride, pad_mode, data_format)
+                    "pad_mode='{}', data_format='{}')".format(kernel_size, stride, pad_mode, data_format)
 
         return [layer_str]
 
@@ -358,7 +358,7 @@ class LayerUtils:
                     "dilation={}, return_indices={}, ceil_mode={})".format(kernel_size, stride, padding,
                                                                            dilation, return_indices, ceil_mode)
 
-        return [layer_str]
+        return [layer_str] #这里好像有点问题呀；
 
     @staticmethod
     def max_pooling_3d_input_legal(input_shape):
@@ -371,7 +371,7 @@ class LayerUtils:
     @staticmethod
     def average_pooling_1d(kernel_size=1, stride=1, pad_mode="same"):
         layer_str = "nn.AvgPool1d(kernel_size={}, stride={}, " \
-                    "pad_mode={})".format(kernel_size, stride, pad_mode)
+                    "pad_mode='{}')".format(kernel_size, stride, pad_mode)
 
         return [layer_str]
 
@@ -383,7 +383,7 @@ class LayerUtils:
     @staticmethod
     def average_pooling_2d(kernel_size=1, stride=1, pad_mode="same", data_format="NCHW"):
         layer_str = "nn.AvgPool2d(kernel_size={}, stride={}, " \
-                    "pad_mode={}, data_format={})".format(kernel_size, stride, pad_mode, data_format)
+                    "pad_mode='{}', data_format='{}')".format(kernel_size, stride, pad_mode, data_format)
 
         return [layer_str]
 
@@ -415,8 +415,8 @@ class LayerUtils:
                                gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
                                moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
         layer_str = "nn.BatchNorm1d(num_features={}, eps={}, momentum={}, affine={}, " \
-                    "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
-                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
+                    "gamma_init='{}', beta_init='{}', moving_mean_init='{}', moving_var_init='{}'," \
+                    "use_batch_statistics={}, data_format='{}')".format(input_shape[1], eps, momentum, affine,
                                                                       gamma_init, beta_init, moving_mean_init,
                                                                       moving_var_init,
                                                                       use_batch_statistics, data_format)
@@ -433,8 +433,8 @@ class LayerUtils:
                                gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
                                moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
         layer_str = "nn.BatchNorm2d(num_features={}, eps={}, momentum={}, affine={}, " \
-                    "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
-                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
+                    "gamma_init='{}', beta_init='{}', moving_mean_init='{}', moving_var_init='{}'," \
+                    "use_batch_statistics={}, data_format='{}')".format(input_shape[1], eps, momentum, affine,
                                                                       gamma_init, beta_init, moving_mean_init,
                                                                       moving_var_init,
                                                                       use_batch_statistics, data_format)
@@ -451,8 +451,8 @@ class LayerUtils:
                                gamma_init='ones', beta_init='zeros', moving_mean_init='zeros',
                                moving_var_init='ones', use_batch_statistics=None, data_format='NCHW'):
         layer_str = "nn.BatchNorm3d(num_features={}, eps={}, momentum={}, affine={}, " \
-                    "gamma_init={}, beta_init={}, moving_mean_init={}, moving_var_init={}," \
-                    "use_batch_statistics={}, data_format={})".format(input_shape[1], eps, momentum, affine,
+                    "gamma_init='{}', beta_init='{}', moving_mean_init='{}',' moving_var_init='{}'," \
+                    "use_batch_statistics={}, data_format='{}')".format(input_shape[1], eps, momentum, affine,
                                                                       gamma_init, beta_init, moving_mean_init,
                                                                       moving_var_init,
                                                                       use_batch_statistics, data_format)
