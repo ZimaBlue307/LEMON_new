@@ -1,0 +1,8 @@
+[WARNING] MI(586:140491238356736,MainProcess):2022-09-21-10:31:02.292.413 [MINDCONVERTER] Protobuf is currently implemented in "Python". The conversion process may take a long time. Please use `export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp` to enable cpp backend.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:03.594.632 [MINDCONVERTER] Onnx model loading begins.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:03.617.485 [MINDCONVERTER] Onnx model loading is finished.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:03.617.689 [MINDCONVERTER] Onnx simplifying begins.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:03.884.204 [MINDCONVERTER] Onnx simplifying is finished.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:04.205.443 [MINDCONVERTER] Code saving begins.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:05.198.309 [MINDCONVERTER] Code saving is finished.
+[INFO] MI(586:140491238356736,MainProcess):2022-09-21-10:31:05.199.059 [MINDCONVERTER] MindConverter: conversion is completed.

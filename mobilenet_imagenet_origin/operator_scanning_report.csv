@@ -1,0 +1,7 @@
+operator_name, count, status
+onnx::Transpose, 3, Supported
+onnx::Conv, 28, Supported
+onnx::Clip, 27, Supported
+onnx::GlobalAveragePool, 1, Supported
+onnx::Reshape, 3, Supported
+onnx::Softmax, 1, Supported
